@@ -1,0 +1,29 @@
+[package]
+name = "worktrace"
+version = "0.1.0"
+description = "工作日迹 WorkTrace — 本地优先的 AI 工作日志与周报工具"
+authors = ["qinwei"]
+edition = "2021"
+
+[lib]
+name = "worktrace_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+dirs = "5"
+reqwest = { version = "0.12", features = ["json", "rustls-tls"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time"] }
+chrono = "0.4"
+zip = "2"
+quick-xml = "0.31"
+base64 = "0.22"
+pdf-extract = "0.7"
+keyring = "2"
+md5 = "0.7"

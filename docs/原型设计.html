@@ -1,0 +1,572 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>工作日迹 · 原型设计</title>
+<style>
+  :root{
+    --bg:#f6f8fb; --card:#ffffff; --border:#e6ebf2; --border-strong:#d2dbe6;
+    --text:#1f2933; --text-2:#5f6b7a; --text-3:#99a4b3;
+    --brand:#378ADD; --brand-soft:#eaf3fc; --brand-strong:#1d6fc4;
+    --green:#2fa37a; --red:#e05252; --amber:#dd9a2b;
+    --heat0:#eef1f5; --heat1:#cbe2f8; --heat2:#9cc6f0; --heat3:#5b9fe2; --heat4:#378add;
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html,body{height:100%;}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;
+    background:#e3e8f0; color:var(--text); font-size:14px;
+    display:flex; align-items:center; justify-content:center; padding:32px;
+  }
+  .app{
+    width:1160px; max-width:100%; height:780px; max-height:96vh;
+    background:var(--bg); border-radius:14px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(0,0,0,.18); display:flex; flex-direction:column;
+  }
+  .titlebar{
+    height:42px; background:#fbfcfe; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; padding:0 16px; flex-shrink:0; user-select:none;
+  }
+  .dots{display:flex; gap:8px;}
+  .dots span{width:12px; height:12px; border-radius:50%;}
+  .dots span:nth-child(1){background:#ff5f57;}
+  .dots span:nth-child(2){background:#febc2e;}
+  .dots span:nth-child(3){background:#28c840;}
+  .tb-title{flex:1; text-align:center; font-size:13px; color:var(--text-2); font-weight:500;}
+  .sync-status{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--text-3);}
+  .sync-dot{width:8px; height:8px; border-radius:50%; background:var(--green);}
+  .body{flex:1; display:flex; min-height:0;}
+
+  .sidebar{
+    width:200px; background:#fbfcfe; border-right:1px solid var(--border);
+    display:flex; flex-direction:column; flex-shrink:0; padding:14px 10px;
+  }
+  .logo{display:flex; align-items:center; gap:10px; padding:4px 10px 18px;}
+  .logo-mark{width:32px; height:32px; border-radius:8px; background:var(--brand);
+    color:#fff; display:flex; align-items:center; justify-content:center; font-weight:600; font-size:15px;}
+  .logo-name{font-size:15px; font-weight:600;}
+  .nav{display:flex; flex-direction:column; gap:4px;}
+  .nav-item{
+    display:flex; align-items:center; gap:10px; padding:9px 12px; border-radius:8px;
+    color:var(--text-2); cursor:pointer; font-size:14px; border:none; background:none; text-align:left; width:100%;
+  }
+  .nav-item:hover{background:#eef2f8;}
+  .nav-item.active{background:var(--brand-soft); color:var(--brand-strong); font-weight:500;}
+  .nav-item svg{flex-shrink:0;}
+  .side-foot{margin-top:auto; padding:12px 10px; border-top:1px solid var(--border); font-size:12px; color:var(--text-3);}
+  .side-foot .sync-dot{margin-right:6px;}
+
+  .content{flex:1; overflow-y:auto; padding:20px; min-width:0;}
+  .page{display:none; animation:fade .18s ease;}
+  .page.active{display:block;}
+  @keyframes fade{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:none;}}
+
+  .card{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:18px;}
+  .card h3{font-size:15px; font-weight:600; margin-bottom:4px;}
+  .card .sub{font-size:12px; color:var(--text-3); margin-bottom:14px;}
+  .muted{color:var(--text-2);} .weak{color:var(--text-3);}
+
+  .btn{border:1px solid var(--border-strong); background:var(--card); border-radius:8px; padding:7px 14px;
+    font-size:13px; cursor:pointer; color:var(--text);}
+  .btn:hover{background:#f0f4fa;}
+  .btn-primary{background:var(--brand); border-color:var(--brand); color:#fff;}
+  .btn-primary:hover{background:var(--brand-strong);}
+  .btn-sm{padding:5px 10px; font-size:12px;}
+
+  /* 工作台 */
+  .dash{display:grid; grid-template-columns:330px 1fr; gap:16px; height:100%;}
+  .dash-right{display:flex; flex-direction:column; gap:16px; min-width:0;}
+  .record-box{display:flex; flex-direction:column; height:100%;}
+  .model-pick{display:flex; align-items:center; gap:8px; margin-bottom:12px;}
+  .model-pick label{font-size:12px; color:var(--text-2);}
+  .model-pick select{
+    flex:1; padding:6px 10px; border:1px solid var(--border-strong); border-radius:8px;
+    font-size:13px; background:var(--card); color:var(--text); cursor:pointer;
+  }
+  .input-area{
+    border:1px solid var(--border-strong); border-radius:10px; padding:12px; min-height:110px;
+    background:var(--card); display:flex; flex-direction:column;
+  }
+  .input-area:focus-within{border-color:var(--brand);}
+  .input-text{flex:1; outline:none; font-size:14px; line-height:1.6; color:var(--text);
+    white-space:pre-wrap; min-height:40px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px;}
+  .chip{display:inline-flex; align-items:center; gap:6px; background:var(--bg); border:1px solid var(--border);
+    border-radius:6px; padding:3px 8px; font-size:12px; color:var(--text);}
+  .chip .x{color:var(--text-3); cursor:pointer;}
+  .input-foot{display:flex; align-items:center; gap:12px; margin-top:12px;}
+  .input-foot .hint{font-size:12px; color:var(--text-3); flex:1;}
+  .icon-btn{width:30px; height:30px; border-radius:6px; border:1px solid var(--border-strong);
+    background:var(--card); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+  .icon-btn:hover{background:#f0f4fa;}
+
+  /* 热力图 */
+  .heat-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .heat-head .yr{display:flex; gap:6px; align-items:center;}
+  .heat-grid{display:grid; grid-auto-flow:column; grid-template-rows:repeat(7,13px); gap:3px; overflow:hidden;}
+  .heat-grid span{width:13px; height:13px; border-radius:2px;}
+  .legend{display:flex; align-items:center; gap:5px; justify-content:flex-end; margin-top:10px; font-size:11px; color:var(--text-3);}
+  .legend i{width:12px; height:12px; border-radius:2px; display:inline-block;}
+
+  /* 日历 */
+  .cal-head{display:flex; align-items:center; justify-content:space-between; margin-bottom:12px;}
+  .cal-nav{display:flex; gap:6px;}
+  .cal-grid{display:grid; grid-template-columns:repeat(7,1fr); gap:6px;}
+  .cal-dow{text-align:center; font-size:11px; color:var(--text-3); padding:2px 0;}
+  .cal-day{
+    background:var(--bg); border:1px solid transparent; border-radius:8px; min-height:54px;
+    padding:4px; cursor:pointer; font-size:12px; position:relative; text-align:left;
+  }
+  .cal-day:hover{border-color:var(--brand);}
+  .cal-day.today{border-color:var(--brand); background:var(--brand-soft);}
+  .cal-day .num{font-weight:500;}
+  .cal-day .dot{width:5px; height:5px; border-radius:50%; background:var(--heat3); position:absolute; bottom:6px; right:6px;}
+  .cal-day .dots3{position:absolute; bottom:6px; left:6px; font-size:10px; color:var(--heat3);}
+
+  /* 记录详情 / 模态 */
+  .modal-mask{position:fixed; inset:0; background:rgba(0,0,0,.35); display:none; align-items:center; justify-content:center; z-index:50;}
+  .modal-mask.show{display:flex;}
+  .modal{width:640px; max-width:92vw; max-height:86vh; background:var(--card); border-radius:14px; overflow:auto; padding:22px;}
+  .modal h2{font-size:16px; font-weight:600; margin-bottom:4px;}
+  .modal .date-sub{font-size:12px; color:var(--text-3); margin-bottom:16px;}
+  .entry{border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px;}
+  .entry .sum{font-weight:600; font-size:14px; margin-bottom:8px;}
+  .tag-row{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .tag{background:var(--brand-soft); color:var(--brand-strong); font-size:12px; border-radius:20px; padding:2px 10px;}
+  .task{font-size:13px; color:var(--text-2); padding-left:14px; position:relative; line-height:1.8;}
+  .task::before{content:""; position:absolute; left:2px; top:9px; width:5px; height:5px; border-radius:50%; background:var(--brand);}
+  .flow{margin-top:12px; border-top:1px dashed var(--border); padding-top:12px;}
+  .flow .flow-label{font-size:12px; color:var(--text-3); margin-bottom:8px;}
+  .flow-line{display:flex; align-items:center; gap:6px; flex-wrap:wrap;}
+  .flow-node{background:var(--bg); border:1px solid var(--border-strong); border-radius:8px; padding:6px 12px; font-size:12px;}
+  .flow-node.hot{border-color:var(--brand); color:var(--brand-strong); font-weight:500;}
+  .flow-arrow{color:var(--text-3);}
+
+  /* 周报 */
+  .report-toolbar{display:flex; align-items:center; gap:10px; margin-bottom:16px;}
+  .week-range{font-size:14px; font-weight:600;}
+  .report-body{background:var(--card); border:1px solid var(--border); border-radius:12px; padding:26px;}
+  .report-body h1{font-size:20px; font-weight:700; margin-bottom:6px;}
+  .report-meta{font-size:12px; color:var(--text-3); margin-bottom:20px;}
+  .report-body h2{font-size:15px; font-weight:600; margin:20px 0 8px; color:var(--brand-strong);}
+  .report-body ul{padding-left:20px; color:var(--text-2); line-height:1.9;}
+  .report-body li{margin-bottom:2px;}
+
+  /* 设置 */
+  .settings{display:flex; gap:16px; height:100%;}
+  .set-tabs{width:160px; display:flex; flex-direction:column; gap:4px; flex-shrink:0;}
+  .set-tab{padding:10px 12px; border-radius:8px; font-size:14px; color:var(--text-2); cursor:pointer; border:none; background:none; text-align:left;}
+  .set-tab:hover{background:#eef0f4;}
+  .set-tab.active{background:var(--brand-soft); color:var(--brand-strong); font-weight:500;}
+  .set-panel{flex:1; min-width:0; overflow:auto;}
+  .set-panel{display:none;}
+  .set-panel.active{display:block;}
+  .model-card{border:1px solid var(--border); border-radius:10px; padding:14px; margin-bottom:12px; display:flex; align-items:center; gap:12px;}
+  .model-card .m-ico{width:36px; height:36px; border-radius:8px; background:var(--brand-soft); color:var(--brand-strong); display:flex; align-items:center; justify-content:center; font-weight:600;}
+  .model-card .m-info{flex:1;}
+  .model-card .m-name{font-weight:600; font-size:14px;}
+  .model-card .m-sub{font-size:12px; color:var(--text-3);}
+  .badge{font-size:11px; border-radius:20px; padding:2px 10px;}
+  .badge.green{background:#e6f6ef; color:#2f8a5e;}
+  .badge.amber{background:#fbf2e2; color:#b0791f;}
+  .field{margin-bottom:14px;}
+  .field label{display:block; font-size:13px; color:var(--text-2); margin-bottom:6px;}
+  .field input,.field select{
+    width:100%; padding:8px 12px; border:1px solid var(--border-strong); border-radius:8px; font-size:13px; color:var(--text); background:var(--card);
+  }
+  .field-row{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .divider{border:none; border-top:1px solid var(--border); margin:18px 0;}
+  .status-line{display:flex; align-items:center; gap:8px; font-size:13px; color:var(--text-2); padding:10px 12px; background:var(--bg); border-radius:8px;}
+  .form-grid{max-width:560px;}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="titlebar">
+    <div class="dots"><span></span><span></span><span></span></div>
+    <div class="tb-title">工作日迹 WorkTrace</div>
+    <div class="sync-status"><span class="sync-dot"></span>已同步 · 12:40</div>
+  </div>
+  <div class="body">
+    <aside class="sidebar">
+      <div class="logo">
+        <div class="logo-mark">迹</div>
+        <div class="logo-name">工作日迹</div>
+      </div>
+      <nav class="nav">
+        <button class="nav-item active" data-page="page-dash">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="13" height="13" rx="2"/><path d="M1.5 6h13M6 6v8.5"/></svg>
+          工作台
+        </button>
+        <button class="nav-item" data-page="page-report">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M3 1.5h7l3 3v10H3z"/><path d="M10 1.5v3h3"/><path d="M5.5 8h5M5.5 10.5h5M5.5 13h3"/></svg>
+          周报
+        </button>
+        <button class="nav-item" data-page="page-settings">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.5"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M12.6 3.4l-1.4 1.4M4.8 11.2l-1.4 1.4"/></svg>
+          设置
+        </button>
+      </nav>
+      <div class="side-foot"><span class="sync-dot"></span>备份：坚果云 WebDAV</div>
+    </aside>
+
+    <main class="content">
+      <!-- 工作台 -->
+      <section class="page active" id="page-dash">
+        <div class="dash">
+          <div class="card record-box">
+            <h3>记录工作</h3>
+            <div class="sub">统一对话入口 · 文字 / 图片 / 文件</div>
+            <div class="model-pick">
+              <label>模型</label>
+              <select id="modelSelect">
+                <option>DeepSeek-V3（记录转化默认）</option>
+                <option>通义千问-Plus</option>
+                <option>Kimi-K2</option>
+                <option>Ollama 本地 · qwen2.5</option>
+              </select>
+            </div>
+            <div class="input-area">
+              <div class="input-text" contenteditable="true" data-ph="今天做了什么？粘贴文字，或拖入图片 / Word / PDF…">今天和产品对了需求，输出了 PRD 初稿</div>
+              <div class="chips">
+                <span class="chip">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#6b7686" stroke-width="1"><rect x="1" y="2" width="14" height="12" rx="2"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M3 13l4-4 3 3 2-2 2 3"/></svg>
+                  流程图-截图.png <span class="x">×</span>
+                </span>
+                <span class="chip">
+                  <svg width="13" height="13" viewBox="0 0 16 16" fill="none" stroke="#6b7686" stroke-width="1"><path d="M4 1h5l4 4v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2a1 1 0 011-1z"/><path d="M9 1v4h4"/></svg>
+                  需求文档.pdf <span class="x">×</span>
+                </span>
+              </div>
+            </div>
+            <div class="input-foot">
+              <button class="icon-btn" title="图片">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b7686" stroke-width="1.4"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><circle cx="5.5" cy="6.5" r="1.5"/><path d="M3 13l4-4 3 3 2-2 2 3"/></svg>
+              </button>
+              <button class="icon-btn" title="文件">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b7686" stroke-width="1.4"><path d="M4 1.5h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2.5a1 1 0 011-1z"/><path d="M9 1.5v3h3"/></svg>
+              </button>
+              <span class="hint">拖拽 / 粘贴（⌘V）即可添加，无需按钮</span>
+              <button class="btn btn-primary">发送</button>
+            </div>
+          </div>
+
+          <div class="dash-right">
+            <div class="card">
+              <div class="heat-head">
+                <h3 style="margin:0;">工作活跃度</h3>
+                <div class="yr weak">2026 年 <button class="btn btn-sm">切换年份</button></div>
+              </div>
+              <div class="heat-grid" id="heatmap"></div>
+              <div class="legend">
+                少
+                <i style="background:var(--heat0)"></i>
+                <i style="background:var(--heat1)"></i>
+                <i style="background:var(--heat2)"></i>
+                <i style="background:var(--heat3)"></i>
+                <i style="background:var(--heat4)"></i>
+                多
+              </div>
+            </div>
+
+            <div class="card" style="flex:1; min-height:0; overflow:auto;">
+              <div class="cal-head">
+                <h3 style="margin:0;">2026 年 8 月 · 每日任务</h3>
+                <div class="cal-nav">
+                  <button class="btn btn-sm">‹</button>
+                  <button class="btn btn-sm">›</button>
+                </div>
+              </div>
+              <div class="cal-grid" id="calendar"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 周报 -->
+      <section class="page" id="page-report">
+        <div class="report-toolbar">
+          <button class="btn">‹ 上一周</button>
+          <button class="btn">下一周 ›</button>
+          <span class="week-range">2026 年第 33 周（8/10 – 8/16）</span>
+          <span style="flex:1"></span>
+          <button class="btn">重新生成</button>
+          <button class="btn btn-primary">导出 ▾</button>
+        </div>
+        <div class="report-body">
+          <h1>第 33 周工作周报</h1>
+          <div class="report-meta">工作日迹 自动生成 · 2026-08-16 12:45 · 模型 DeepSeek-V3</div>
+          <h2>本周完成事项</h2>
+          <ul>
+            <li>完成登录模块接口联调，修复 token 自动刷新问题</li>
+            <li>与产品对齐需求，输出 PRD 初稿并评审通过</li>
+            <li>搭建 CI 流水线，主分支自动构建 + 单元测试</li>
+            <li>处理 3 个线上缺陷，均已回归验证</li>
+          </ul>
+          <h2>关键成果 / 亮点</h2>
+          <ul>
+            <li>登录模块性能优化，首屏加载耗时下降 32%</li>
+            <li>PRD 评审一次通过，节省一轮返工</li>
+          </ul>
+          <h2>问题与风险</h2>
+          <ul>
+            <li>第三方短信接口偶发超时，已提工单跟进，下周需确认 SLA</li>
+            <li>测试人力紧张，自动化覆盖率不足，计划补充关键链路用例</li>
+          </ul>
+          <h2>下周计划</h2>
+          <ul>
+            <li>完成支付模块开发与自测</li>
+            <li>补齐短信接口降级方案</li>
+            <li>推进自动化测试覆盖核心流程</li>
+          </ul>
+        </div>
+      </section>
+
+      <!-- 设置 -->
+      <section class="page" id="page-settings">
+        <div class="settings">
+          <div class="set-tabs">
+            <button class="set-tab active" data-tab="tab-model">大模型</button>
+            <button class="set-tab" data-tab="tab-backup">备份</button>
+          </div>
+
+          <div class="set-panel active" id="tab-model">
+            <div class="card" style="max-width:640px;">
+              <h3>大模型配置</h3>
+              <div class="sub">支持 OpenAI 兼容协议与本地 Ollama，可配置多个模型并指定用途</div>
+
+              <div class="model-card">
+                <div class="m-ico">DS</div>
+                <div class="m-info">
+                  <div class="m-name">DeepSeek-V3</div>
+                  <div class="m-sub">OpenAI 兼容 · 记录转化 + 周报默认</div>
+                </div>
+                <span class="badge green">已连通</span>
+                <button class="btn btn-sm">编辑</button>
+              </div>
+              <div class="model-card">
+                <div class="m-ico">通</div>
+                <div class="m-info">
+                  <div class="m-name">通义千问-Plus</div>
+                  <div class="m-sub">DashScope · 支持视觉，用于图片/流程图识别</div>
+                </div>
+                <span class="badge green">已连通</span>
+                <button class="btn btn-sm">编辑</button>
+              </div>
+              <div class="model-card">
+                <div class="m-ico">O</div>
+                <div class="m-info">
+                  <div class="m-name">Ollama 本地 · qwen2.5</div>
+                  <div class="m-sub">http://localhost:11434 · 数据不出本机</div>
+                </div>
+                <span class="badge amber">未测试</span>
+                <button class="btn btn-sm">编辑</button>
+              </div>
+
+              <button class="btn btn-primary" style="margin:6px 0 4px;">+ 添加模型</button>
+              <hr class="divider">
+              <div class="form-grid">
+                <div class="field">
+                  <label>显示名称</label>
+                  <input placeholder="例如：DeepSeek-V3">
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>Base URL</label>
+                    <input placeholder="https://api.deepseek.com/v1">
+                  </div>
+                  <div class="field">
+                    <label>模型名</label>
+                    <input placeholder="deepseek-chat">
+                  </div>
+                </div>
+                <div class="field">
+                  <label>API Key（存于 macOS Keychain）</label>
+                  <input type="password" placeholder="sk-••••••••••••">
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>默认用途</label>
+                    <select>
+                      <option>记录转化</option>
+                      <option>周报生成</option>
+                      <option>图片 / 流程图识别</option>
+                    </select>
+                  </div>
+                  <div class="field" style="display:flex; align-items:flex-end;">
+                    <button class="btn">测试连通性</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="set-panel" id="tab-backup">
+            <div class="card" style="max-width:640px;">
+              <h3>备份与同步（WebDAV）</h3>
+              <div class="sub">云端仅备份结构化记录与周报，附件原文件不备份</div>
+              <div class="form-grid">
+                <div class="field">
+                  <label>服务商</label>
+                  <select>
+                    <option>坚果云（默认）</option>
+                    <option>InfiniCLOUD</option>
+                    <option>其他 WebDAV</option>
+                  </select>
+                </div>
+                <div class="field">
+                  <label>WebDAV 地址</label>
+                  <input value="https://dav.jianguoyun.com/dav/">
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>账号</label>
+                    <input value="user@example.com">
+                  </div>
+                  <div class="field">
+                    <label>应用密码</label>
+                    <input type="password" value="••••••••••">
+                  </div>
+                </div>
+                <div class="field-row">
+                  <div class="field">
+                    <label>自动同步频率</label>
+                    <select>
+                      <option>每 5 分钟</option>
+                      <option>每 15 分钟</option>
+                      <option>每小时</option>
+                      <option>仅手动</option>
+                    </select>
+                  </div>
+                  <div class="field">
+                    <label>附件临时副本</label>
+                    <select>
+                      <option>保留 7 天后自动清理</option>
+                      <option>保留 30 天</option>
+                      <option>处理完立即清理</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+              <hr class="divider">
+              <div class="status-line">
+                <span class="sync-dot"></span>
+                上次同步：今天 12:40 · 成功 · 待同步 0 项
+              </div>
+              <div style="margin-top:14px; display:flex; gap:10px;">
+                <button class="btn btn-primary">立即同步</button>
+                <button class="btn">保存配置</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+</div>
+
+<!-- 当天详情模态 -->
+<div class="modal-mask" id="detailMask">
+  <div class="modal">
+    <div style="display:flex; align-items:flex-start; justify-content:space-between;">
+      <div>
+        <h2 id="detailTitle">8 月 16 日 · 周日</h2>
+        <div class="date-sub">3 条工作记录</div>
+      </div>
+      <button class="btn btn-sm" onclick="closeDetail()">关闭</button>
+    </div>
+
+    <div class="entry">
+      <div class="sum">完成登录模块接口联调</div>
+      <div class="tag-row"><span class="tag">开发</span><span class="tag">联调</span></div>
+      <div class="task">登录接口联调</div>
+      <div class="task">修复 token 自动刷新问题</div>
+      <div class="flow">
+        <div class="flow-label">关键流程图（AI 识别）</div>
+        <div class="flow-line">
+          <span class="flow-node hot">请求登录</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node">校验凭证</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node">签发 token</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node hot">刷新 token</span>
+          <span class="flow-arrow">→</span>
+          <span class="flow-node">返回资源</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="entry">
+      <div class="sum">与产品对齐需求，输出 PRD 初稿</div>
+      <div class="tag-row"><span class="tag">文档</span><span class="tag">沟通</span></div>
+      <div class="task">需求评审会议</div>
+      <div class="task">输出 PRD 初稿并评审通过</div>
+    </div>
+
+    <div class="entry">
+      <div class="sum">处理线上缺陷</div>
+      <div class="tag-row"><span class="tag">缺陷修复</span></div>
+      <div class="task">修复 3 个线上缺陷，均回归验证</div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  var heat=document.getElementById('heatmap'), cols=40, h='', seed=7;
+  function rnd(){ seed=(seed*9301+49297)%233280; return seed/233280; }
+  for(var c=0;c<cols;c++){for(var r=0;r<7;r++){
+    var v=rnd(), bg='var(--heat0)';
+    if(v>0.82) bg='var(--heat4)';
+    else if(v>0.68) bg='var(--heat3)';
+    else if(v>0.5) bg='var(--heat2)';
+    else if(v>0.28) bg='var(--heat1)';
+    h+='<span style="background:'+bg+'" title="'+ (8+c) +'月"></span>';
+  }}
+  heat.innerHTML=h;
+
+  var wk=['一','二','三','四','五','六','日'], cal=document.getElementById('calendar'), s='';
+  wk.forEach(function(d){ s+='<div class="cal-dow">'+d+'</div>'; });
+  for(var i=0;i<5;i++){ s+='<div></div>'; }
+  var active=[3,4,8,11,12,15,16,18,22,25,26];
+  var counts={3:1,4:2,8:1,11:3,12:1,15:2,16:3,18:1,22:2,25:1,26:1};
+  for(var d=1;d<=31;d++){
+    var isA=active.indexOf(d)>=0, isT=(d===16), cnt=counts[d]||0;
+    s+='<div class="cal-day'+(isT?' today':'')+'" data-day="'+d+'" onclick="openDetail('+d+')">'
+      +'<div class="num">'+d+'</div>'
+      +(cnt>0?'<div class="dots3">'+cnt+' 项</div>':'')
+      +(isA?'<div class="dot"></div>':'')
+      +'</div>';
+  }
+  cal.innerHTML=s;
+
+  document.querySelectorAll('.nav-item').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.nav-item').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');
+      document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active');});
+      document.getElementById(b.dataset.page).classList.add('active');
+    });
+  });
+  document.querySelectorAll('.set-tab').forEach(function(b){
+    b.addEventListener('click', function(){
+      document.querySelectorAll('.set-tab').forEach(function(x){x.classList.remove('active');});
+      b.classList.add('active');
+      document.querySelectorAll('.set-panel').forEach(function(p){p.classList.remove('active');});
+      document.getElementById(b.dataset.tab).classList.add('active');
+    });
+  });
+
+  var mask=document.getElementById('detailMask');
+  mask.addEventListener('click', function(e){ if(e.target===mask) closeDetail(); });
+})();
+function openDetail(d){
+  document.getElementById('detailTitle').textContent='8 月 '+d+' 日';
+  document.getElementById('detailMask').classList.add('show');
+}
+function closeDetail(){ document.getElementById('detailMask').classList.remove('show'); }
+</script>
+</body>
+</html>
