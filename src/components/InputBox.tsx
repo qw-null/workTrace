@@ -3,27 +3,6 @@ import { api, RECORD_CHANGED_EVENT } from "../api";
 import type { ModelConfig, Structured } from "../types";
 import FlowDiagram from "./FlowDiagram";
 
-const FALLBACK_MODELS: ModelConfig[] = [
-  {
-    id: "m1",
-    name: "DeepSeek-V3",
-    baseUrl: "https://api.deepseek.com/v1",
-    model: "deepseek-chat",
-    apiKey: "",
-    role: "record",
-    isDefault: true,
-  },
-  {
-    id: "m3",
-    name: "Ollama 本地 · qwen2.5",
-    baseUrl: "http://localhost:11434/v1",
-    model: "qwen2.5",
-    apiKey: "ollama",
-    role: "record",
-    isDefault: false,
-  },
-];
-
 function todayStr(): string {
   const d = new Date();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -41,8 +20,8 @@ function fileToBase64(file: File): Promise<string> {
 }
 
 export default function InputBox() {
-  const [models, setModels] = useState<ModelConfig[]>(FALLBACK_MODELS);
-  const [modelId, setModelId] = useState(FALLBACK_MODELS[0].id);
+  const [models, setModels] = useState<ModelConfig[]>([]);
+  const [modelId, setModelId] = useState("");
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
