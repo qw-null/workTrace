@@ -12,11 +12,17 @@ pub struct Flowchart {
 /// AI 转化后的结构化字段
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Structured {
+    #[serde(default)]
     pub summary: String,
+    #[serde(default)]
     pub tasks: Vec<String>,
+    #[serde(default)]
     pub tags: Vec<String>,
+    #[serde(default)]
     pub outputs: Vec<String>,
+    #[serde(default)]
     pub flowcharts: Vec<Flowchart>,
+    #[serde(default)]
     pub todos: Vec<String>,
 }
 

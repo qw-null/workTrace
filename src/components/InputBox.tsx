@@ -3,6 +3,9 @@ import { api, RECORD_CHANGED_EVENT } from "../api";
 import type { ModelConfig, Structured } from "../types";
 import FlowDiagram from "./FlowDiagram";
 
+// 输入草稿的本地持久化键：切换页面/重启应用时恢复未提交的内容
+const DRAFT_KEY = "worktrace:input-draft";
+
 function todayStr(): string {
   const d = new Date();
   const m = String(d.getMonth() + 1).padStart(2, "0");
@@ -22,7 +25,13 @@ function fileToBase64(file: File): Promise<string> {
 export default function InputBox() {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [modelId, setModelId] = useState("");
-  const [text, setText] = useState("");
+  const [text, setText] = useState<string>(() => {
+    try {
+      return localStorage.getItem(DRAFT_KEY) || "";
+    } catch {
+      return "";
+    }
+  });
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
   const [result, setResult] = useState<Structured | null>(null);
@@ -44,6 +53,16 @@ export default function InputBox() {
         /* 浏览器预览环境无后端，保持 fallback */
       });
   }, []);
+
+  // 输入内容实时持久化，切换页面/重启应用后自动恢复
+  useEffect(() => {
+    try {
+      if (text) localStorage.setItem(DRAFT_KEY, text);
+      else localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      /* 忽略存储异常 */
+    }
+  }, [text]);
 
   const send = async () => {
     if (!text.trim()) return;
@@ -72,6 +91,11 @@ export default function InputBox() {
       setSaved("已入库");
       setResult(null);
       setText("");
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
       window.dispatchEvent(new Event(RECORD_CHANGED_EVENT));
     } catch (e) {
       setError(String(e));
