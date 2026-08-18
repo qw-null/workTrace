@@ -1,6 +1,6 @@
 [package]
 name = "worktrace"
-version = "0.1.4"
+version = "0.1.5"
 description = "工作日迹 WorkTrace — 本地优先的 AI 工作日志与周报工具"
 authors = ["qinwei"]
 edition = "2021"
