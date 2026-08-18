@@ -92,6 +92,7 @@ jobs:
         run: |
           python3 << 'PYEOF'
           import json, os, glob
+          from datetime import datetime, timezone
 
           version = os.environ["GITHUB_REF_NAME"].lstrip("v")
           base_url = f"https://github.com/{os.environ['GITHUB_REPOSITORY']}/releases/download/{os.environ['GITHUB_REF_NAME']}"
@@ -120,10 +121,12 @@ jobs:
                   "url": f"{base_url}/{os.path.basename(exe)}",
               }
 
+          # pub_date 必须是合法 RFC3339 时间戳，空字符串会导致 Tauri updater 解析失败
+          pub_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
           data = {
               "version": version,
               "notes": "发现新版本，可自动更新",
-              "pub_date": "",
+              "pub_date": pub_date,
               "platforms": platforms,
           }
           with open("latest.json", "w") as f:
