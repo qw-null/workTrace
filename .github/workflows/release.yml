@@ -44,6 +44,23 @@ jobs:
       - name: Build
         run: npm run tauri build
 
+      - name: Tag macOS artifact with arch
+        if: matrix.os == 'macos-latest'
+        run: |
+          cd src-tauri/target/release/bundle/macos
+          ARCH=$(uname -m)
+          if [ "$ARCH" = "arm64" ]; then ARCH="aarch64"; fi
+          for f in *.app.tar.gz; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%.app.tar.gz}_${ARCH}.app.tar.gz"
+          done
+          for f in *.app.tar.gz.sig; do
+            [ -e "$f" ] || continue
+            mv "$f" "${f%.app.tar.gz.sig}_${ARCH}.app.tar.gz.sig"
+          done
+          echo "=== 重命名后的 macOS 产物 ==="
+          ls -la
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
