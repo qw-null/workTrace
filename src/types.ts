@@ -18,6 +18,7 @@ export type EntryStatus = "pending" | "confirmed" | "edited";
 
 export interface RecordEntry {
   id: string;
+  kind: string; // record | todo
   createdAt: string;
   updatedAt: string;
   rawText: string;
@@ -36,6 +37,7 @@ export interface DayRecord {
 export interface DayActive {
   date: string;
   count: number;
+  todoCount: number;
 }
 
 export interface Report {

@@ -1,5 +1,11 @@
 import { invoke } from "@tauri-apps/api/core";
+import { check } from "@tauri-apps/plugin-updater";
 import type { BackupSettings, DayActive, DayRecord, ModelConfig, Report, Structured, WebdavConfig } from "../types";
+
+export interface UpdateInfo {
+  version: string;
+  notes: string;
+}
 
 // 统一封装 Tauri 后端命令；在浏览器（vite dev）环境下后端不可用时返回 mock。
 export const api = {
@@ -39,6 +45,15 @@ export const api = {
   ): Promise<void> {
     return invoke("confirm_record", { date, rawText, modelId, structured });
   },
+  async confirmTodo(date: string, text: string): Promise<void> {
+    return invoke("confirm_todo", { date, text });
+  },
+  async deleteEntry(date: string, entryId: string): Promise<void> {
+    return invoke("delete_entry", { date, entryId });
+  },
+  async updateEntry(date: string, entryId: string, structured: Structured): Promise<void> {
+    return invoke("update_entry", { date, entryId, structured });
+  },
   async getMonthActive(month: string): Promise<DayActive[]> {
     return invoke<DayActive[]>("get_month_active", { month });
   },
@@ -75,6 +90,27 @@ export const api = {
   async syncNow(): Promise<string> {
     return invoke("sync_now");
   },
+  async checkUpdate(): Promise<UpdateInfo | null> {
+    const update = await check();
+    return update ? { version: update.version, notes: update.body || "" } : null;
+  },
+  async installUpdate(onProgress?: (percent: number) => void): Promise<void> {
+    const update = await check();
+    if (!update) return;
+    let total = 0;
+    let downloaded = 0;
+    await update.downloadAndInstall((event) => {
+      if (event.event === "Started") {
+        total = event.data.contentLength || 0;
+      } else if (event.event === "Progress") {
+        downloaded += event.data.chunkLength;
+        if (onProgress && total > 0) {
+          onProgress(Math.min(99, Math.round((downloaded / total) * 100)));
+        }
+      }
+    });
+    await invoke("restart_app");
+  },
 };
 
 // 备份账号变更事件名：设置页切换默认账号后触发，侧边栏等监听刷新
@@ -82,3 +118,6 @@ export const BACKUP_CHANGED_EVENT = "worktrace:backup-changed";
 
 // 记录变更事件名：确认入库后触发，日历/热力图等监听刷新
 export const RECORD_CHANGED_EVENT = "worktrace:record-changed";
+
+// 检查更新事件名：设置页「检查更新」按钮触发，App 监听执行
+export const CHECK_UPDATE_EVENT = "worktrace:check-update";

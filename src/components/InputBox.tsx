@@ -22,6 +22,14 @@ function fileToBase64(file: File): Promise<string> {
   });
 }
 
+// 粘贴的文件可能没有文件名/扩展名，根据 MIME 类型补全
+function ensureFilename(file: File): string {
+  if (file.name && file.name.includes(".")) return file.name;
+  const ext = (file.type.split("/")[1] || "png").toLowerCase();
+  const map: Record<string, string> = { jpeg: "jpg", "svg+xml": "svg" };
+  return `粘贴图片.${map[ext] || ext}`;
+}
+
 export default function InputBox() {
   const [models, setModels] = useState<ModelConfig[]>([]);
   const [modelId, setModelId] = useState("");
@@ -37,6 +45,7 @@ export default function InputBox() {
   const [result, setResult] = useState<Structured | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
+  const [mode, setMode] = useState<"record" | "todo">("record");
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -45,8 +54,10 @@ export default function InputBox() {
       .then((ms) => {
         if (ms.length > 0) {
           setModels(ms);
-          const def = ms.find((m) => m.isDefault) || ms[0];
-          setModelId(def.id);
+          // 默认选中「记录转化」用途的模型（排除图片识别专用的 vision 模型）
+          const recordModels = ms.filter((m) => m.role !== "vision");
+          const def = recordModels.find((m) => m.isDefault) || recordModels[0];
+          if (def) setModelId(def.id);
         }
       })
       .catch(() => {
@@ -102,17 +113,34 @@ export default function InputBox() {
     }
   };
 
-  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    e.target.value = "";
+  // 待办模式：直接入库（不经过 AI 结构化）
+  const addTodo = async () => {
+    if (!text.trim()) return;
+    try {
+      await api.confirmTodo(todayStr(), text.trim());
+      setSaved("待办已添加");
+      setText("");
+      try {
+        localStorage.removeItem(DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
+      window.dispatchEvent(new Event(RECORD_CHANGED_EVENT));
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  // 解析单个附件（上传或粘贴共用），识别结果以文本块追加到输入框
+  const processFile = async (file: File) => {
     setError("");
     setParsing(true);
     try {
       const base64 = await fileToBase64(file);
+      const name = ensureFilename(file);
       const visionId = models.find((m) => m.role === "vision")?.id || modelId;
-      const content = await api.parseAttachment(file.name, base64, visionId);
-      const block = `【附件：${file.name}】\n${content}`;
+      const content = await api.parseAttachment(name, base64, visionId);
+      const block = `【附件：${name}】\n${content}`;
       setText((t) => (t ? `${t}\n\n${block}` : block));
     } catch (err) {
       setError(String(err));
@@ -121,41 +149,110 @@ export default function InputBox() {
     }
   };
 
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = "";
+    await processFile(file);
+  };
+
+  // 支持直接粘贴图片/文件到输入框
+  const handlePaste = async (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    const files: File[] = [];
+    for (const item of Array.from(items)) {
+      if (item.kind === "file") {
+        const f = item.getAsFile();
+        if (f) files.push(f);
+      }
+    }
+    if (files.length === 0) return; // 纯文本粘贴，走默认行为
+    e.preventDefault(); // 阻止把图片 base64 文本粘进输入框
+    for (const f of files) {
+      await processFile(f);
+    }
+  };
+
   return (
     <div className="card record-box">
       <h3>记录工作</h3>
       <div className="sub">统一对话入口 · 文字 / 图片 / 文件</div>
 
-      <div className="model-pick">
-        <label>模型</label>
-        <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
-          {models.map((m) => (
-            <option key={m.id} value={m.id}>
-              {m.name}
-            </option>
-          ))}
-        </select>
+      <div className="mode-toggle">
+        <button
+          className={"mode-btn" + (mode === "record" ? " active" : "")}
+          onClick={() => {
+            setMode("record");
+            setResult(null);
+          }}
+        >
+          记录
+        </button>
+        <button
+          className={"mode-btn" + (mode === "todo" ? " active" : "")}
+          onClick={() => {
+            setMode("todo");
+            setResult(null);
+          }}
+        >
+          待办
+        </button>
       </div>
+
+      {mode === "record" && (
+        <div className="model-pick">
+          <label>模型</label>
+          <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
+            {models
+              .filter((m) => m.role !== "vision")
+              .map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+          </select>
+        </div>
+      )}
 
       <div className="input-area">
         <textarea
-          placeholder="今天做了什么？粘贴文字，或点击下方图标添加 Word / PDF / 图片…"
+          placeholder={
+            mode === "record"
+              ? "今天做了什么？粘贴文字或图片，或点击下方图标添加 Word / PDF / 图片…"
+              : "添加待办事项，每行一条…"
+          }
           value={text}
           onChange={(e) => setText(e.target.value)}
+          onPaste={handlePaste}
         />
       </div>
 
       <div className="input-foot">
-        <button className="icon-btn" title="添加图片 / 文件" onClick={() => fileRef.current?.click()}>
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b7686" strokeWidth="1.4">
-            <path d="M4 1.5h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2.5a1 1 0 011-1z" />
-            <path d="M9 1.5v3h3" />
-          </svg>
-        </button>
-        <span className="hint">{parsing ? "正在解析附件…" : "点击图标添加文件，或直接粘贴文字"}</span>
-        <button className="btn btn-primary" onClick={send} disabled={loading}>
-          {loading ? "转化中…" : "发送"}
-        </button>
+        {mode === "record" && (
+          <button className="icon-btn" title="添加图片 / 文件" onClick={() => fileRef.current?.click()}>
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="#6b7686" strokeWidth="1.4">
+              <path d="M4 1.5h5l3 3v9a1 1 0 01-1 1H4a1 1 0 01-1-1V2.5a1 1 0 011-1z" />
+              <path d="M9 1.5v3h3" />
+            </svg>
+          </button>
+        )}
+        <span className="hint">
+          {parsing
+            ? "正在识别图片 / 解析附件…"
+            : mode === "record"
+              ? "点击图标或直接粘贴图片 / 文件"
+              : "每行一条待办，点击即可添加"}
+        </span>
+        {mode === "record" ? (
+          <button className="btn btn-primary" onClick={send} disabled={loading}>
+            {loading ? "转化中…" : "发送"}
+          </button>
+        ) : (
+          <button className="btn btn-primary" onClick={addTodo}>
+            添加待办
+          </button>
+        )}
       </div>
       <input
         ref={fileRef}

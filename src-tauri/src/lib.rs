@@ -6,6 +6,7 @@ mod storage;
 mod sync;
 
 use std::path::PathBuf;
+use tauri::Manager;
 
 /// 数据根目录：~/Library/Application Support/WorkTrace
 pub fn data_dir() -> Result<PathBuf, String> {
@@ -14,6 +15,12 @@ pub fn data_dir() -> Result<PathBuf, String> {
         .join("WorkTrace");
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     Ok(dir)
+}
+
+/// 更新完成后重启应用
+#[tauri::command]
+fn restart_app(app: tauri::AppHandle) {
+    tauri::process::restart(&app.env());
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -46,6 +53,7 @@ pub fn run() {
 
             Ok(())
         })
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             ai::transform_record,
             ai::test_model,
@@ -64,10 +72,14 @@ pub fn run() {
             storage::get_day_record,
             storage::save_day_record,
             storage::confirm_record,
+            storage::confirm_todo,
+            storage::delete_entry,
+            storage::update_entry,
             storage::get_month_active,
             storage::get_year_active,
             sync::sync_now,
             sync::test_webdav,
+            restart_app,
         ])
         .build(tauri::generate_context!())
         .expect("error while building WorkTrace")

@@ -3,8 +3,6 @@ use std::io::Read;
 use base64::engine::general_purpose::STANDARD;
 use base64::Engine;
 
-use crate::settings;
-
 /// 解析附件内容为文本：docx/pdf 本地提取，图片走多模态视觉模型识别
 #[tauri::command]
 pub async fn parse_attachment(
@@ -21,8 +19,7 @@ pub async fn parse_attachment(
         "docx" | "doc" => parse_docx(&data),
         "pdf" => parse_pdf(&data),
         "png" | "jpg" | "jpeg" | "gif" | "webp" => {
-            let model_id = model_id.ok_or("识别图片需要配置视觉模型")?;
-            parse_image(&data, &ext, &model_id).await
+            parse_image(&data, &ext, model_id.as_deref()).await
         }
         _ => Err(format!("暂不支持的文件类型: {ext}")),
     }
@@ -94,44 +91,50 @@ fn parse_pdf(data: &[u8]) -> Result<String, String> {
     }
 }
 
-/// 调用视觉模型识别图片内容（含流程图）
-async fn parse_image(data: &[u8], ext: &str, model_id: &str) -> Result<String, String> {
-    let model = settings::get_model(model_id)?;
-    if model.api_key.is_empty() {
-        return Err("该模型未配置 API Key".to_string());
-    }
-    let base = model.base_url.trim_end_matches('/');
+// 内置 PaddleOCR 图片识别（讯飞免费 OCR 服务，开箱即用，无需用户配置）
+const OCR_BASE_URL: &str = "https://maas-api.cn-huabei-1.xf-yun.com/v2";
+const OCR_MODEL: &str = "xoppaddleocrv16";
+const OCR_API_KEY: &str = "ea3c6ea556d43a6c02a44eed60ab04b2:NzYyYmU2OGQwYjE0MmVmYTFmMzRkMGVh";
+
+/// 图片识别入口：使用内置 PaddleOCR，无需用户配置
+async fn parse_image(data: &[u8], ext: &str, _model_id: Option<&str>) -> Result<String, String> {
+    let _ = _model_id;
+    let base = OCR_BASE_URL.trim_end_matches('/');
     let url = format!("{}/chat/completions", base);
     let mime_ext = if ext == "jpg" { "jpeg" } else { ext };
     let data_url = format!("data:image/{mime_ext};base64,{}", STANDARD.encode(data));
 
-    let client = reqwest::Client::new();
+    let client = reqwest::Client::builder()
+        .connect_timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(120))
+        .build()
+        .unwrap_or_else(|_| reqwest::Client::new());
     let resp = client
         .post(&url)
-        .header("Authorization", format!("Bearer {}", model.api_key))
+        .header("Authorization", format!("Bearer {}", OCR_API_KEY))
         .json(&serde_json::json!({
-            "model": model.model,
+            "model": OCR_MODEL,
             "messages": [{
                 "role": "user",
                 "content": [
-                    { "type": "text", "text": "请识别这张图片中的内容：1) 图片中的文字；2) 若包含流程图/架构图/时序图，请用 Mermaid 语法描述出来。直接输出识别结果，不要多余说明。" },
+                    { "type": "text", "text": "请识别这张图片中的文字，直接输出识别结果，不要多余说明。" },
                     { "type": "image_url", "image_url": { "url": data_url } }
                 ]
             }]
         }))
         .send()
         .await
-        .map_err(|e| format!("请求视觉模型失败: {e}"))?;
+        .map_err(|e| format!("请求 OCR 服务失败: {e}"))?;
 
     let status = resp.status();
     let body = resp.text().await.map_err(|e| e.to_string())?;
     if !status.is_success() {
         let snippet: String = body.chars().take(200).collect();
-        return Err(format!("视觉模型返回错误 {status}: {snippet}"));
+        return Err(format!("OCR 服务返回错误 {status}: {snippet}"));
     }
 
     let v: serde_json::Value =
-        serde_json::from_str(&body).map_err(|e| format!("解析视觉模型响应失败: {e}"))?;
+        serde_json::from_str(&body).map_err(|e| format!("解析 OCR 响应失败: {e}"))?;
     v["choices"][0]["message"]["content"]
         .as_str()
         .map(|s| s.to_string())

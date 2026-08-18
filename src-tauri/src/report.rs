@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::ai::chat_completion;
 use crate::storage;
 
-const REPORT_SYSTEM: &str = "你是工作周报生成助手。根据本周的工作记录，生成一份周报，Markdown 格式，包含以下四个板块：\n\n## 本周完成事项\n## 关键成果 / 亮点\n## 问题与风险\n## 下周计划\n\n要求：\n1. 忠实记录内容，不编造、不夸大。\n2. 用简洁的要点列表（- 开头）。\n3. 若某板块没有对应内容，写「无」。\n4. 只输出 Markdown 正文，不要额外解释。";
+const REPORT_SYSTEM: &str = "你是工作周报生成助手。根据本周的工作记录，生成一份周报，Markdown 格式，包含以下四个板块：\n\n## 本周完成事项\n## 关键成果 / 亮点\n## 问题与风险\n## 下周计划\n\n要求：\n1. 忠实记录内容，不编造、不夸大。\n2. 用简洁的要点列表（- 开头）。\n3. 标记为【待办】的条目是尚未完成的待办事项，应归入「下周计划」板块，不要当作已完成事项。\n4. 若某板块没有对应内容，写「无」。\n5. 只输出 Markdown 正文，不要额外解释。";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -36,15 +36,24 @@ pub async fn generate_report(week_start: String, model_id: String) -> Result<Rep
             summary.push_str(&format!("【{date}】\n"));
             for e in &day.entries {
                 let s = &e.structured;
-                summary.push_str(&format!("- 摘要：{}\n", s.summary));
-                if !s.tasks.is_empty() {
-                    summary.push_str(&format!("  任务：{}\n", s.tasks.join("；")));
-                }
-                if !s.outputs.is_empty() {
-                    summary.push_str(&format!("  产出：{}\n", s.outputs.join("；")));
-                }
-                if !s.todos.is_empty() {
-                    summary.push_str(&format!("  待办：{}\n", s.todos.join("；")));
+                if e.kind == "todo" {
+                    // 待办条目：明确标记，供 AI 归入「下周计划」
+                    if !s.tasks.is_empty() {
+                        summary.push_str(&format!("- 【待办】{}\n", s.tasks.join("；")));
+                    } else {
+                        summary.push_str(&format!("- 【待办】{}\n", s.summary));
+                    }
+                } else {
+                    summary.push_str(&format!("- 摘要：{}\n", s.summary));
+                    if !s.tasks.is_empty() {
+                        summary.push_str(&format!("  任务：{}\n", s.tasks.join("；")));
+                    }
+                    if !s.outputs.is_empty() {
+                        summary.push_str(&format!("  产出：{}\n", s.outputs.join("；")));
+                    }
+                    if !s.todos.is_empty() {
+                        summary.push_str(&format!("  待办：{}\n", s.todos.join("；")));
+                    }
                 }
             }
             total += day.entries.len();

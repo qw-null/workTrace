@@ -21,7 +21,7 @@ struct Webdav {
 
 impl Webdav {
     fn new(cfg: WebdavConfig) -> Self {
-        let base = format!("{}/worktrace", cfg.url.trim_end_matches('/'));
+        let base = format!("{}/worktrace", cfg.url.trim().trim_end_matches('/'));
         let cnonce = uuid::Uuid::new_v4().simple().to_string();
         // 设置超时，避免网络异常时请求无限期挂起导致应用卡死
         let client = reqwest::Client::builder()
@@ -449,14 +449,17 @@ fn parse_propfind(xml: &str) -> Result<HashMap<String, i64>, String> {
     Ok(map)
 }
 
-/// href 形如 .../worktrace/records/...，取 worktrace/ 之后的相对路径
+/// href 形如 .../worktrace/records/...，取 worktrace/ 之后的相对路径。
+/// 注意：部分服务商（如科技云盘）返回的 href 为完整 URL 且路径带双斜杠，
+/// 例如 https://.../worktrace//records/...，取出的相对路径会以 "/" 开头，
+/// 若直接 join 会被当成绝对路径写入系统根目录（只读）。故统一去掉前后斜杠。
 fn href_to_rel(href: &str) -> Option<String> {
     let idx = href.find("/worktrace/")?;
-    let rel = &href[idx + "/worktrace/".len()..];
+    let rel = href[idx + "/worktrace/".len()..].trim_matches('/');
     if rel.is_empty() {
         None
     } else {
-        Some(rel.trim_end_matches('/').to_string())
+        Some(rel.to_string())
     }
 }
 
@@ -485,6 +488,33 @@ mod tests {
         eprintln!("parsed map: {:?}", map);
         assert_eq!(map.len(), 1);
         assert!(map.contains_key("records/2026-08-16.json"));
+        assert!(!map.contains_key("records"));
+    }
+
+    #[test]
+    fn test_href_to_rel_cstcloud() {
+        // 科技云盘返回完整 URL 且带双斜杠，取出的相对路径不得以 "/" 开头
+        assert_eq!(
+            href_to_rel("https://pan.cstcloud.cn/DAV/个人文件/worktrace//records/2026/08/2026-08-16.json"),
+            Some("records/2026/08/2026-08-16.json".to_string())
+        );
+        // 坚果云相对路径（单斜杠）行为不变
+        assert_eq!(
+            href_to_rel("/dav/worktrace/records/2026-08-16.json"),
+            Some("records/2026-08-16.json".to_string())
+        );
+        // 根目录（worktrace 自身）返回 None
+        assert_eq!(href_to_rel("https://pan.cstcloud.cn/DAV/个人文件/worktrace/"), None);
+    }
+
+    #[test]
+    fn test_parse_propfind_cstcloud() {
+        // 贴近科技云盘真实响应：href 为完整 URL + 双斜杠
+        let xml = r#"<?xml version="1.0"?><d:multistatus xmlns:d="DAV:"><d:response><d:href>https://pan.cstcloud.cn/DAV/个人文件/worktrace/</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype><d:getlastmodified>Mon, 17 Aug 2026 03:43:25 GMT</d:getlastmodified></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>https://pan.cstcloud.cn/DAV/个人文件/worktrace//records</d:href><d:propstat><d:prop><d:resourcetype><d:collection/></d:resourcetype><d:getlastmodified>Mon, 17 Aug 2026 03:43:22 GMT</d:getlastmodified></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response><d:response><d:href>https://pan.cstcloud.cn/DAV/个人文件/worktrace//records/2026/08/2026-08-16.json</d:href><d:propstat><d:prop><d:getlastmodified>Mon, 17 Aug 2026 03:43:22 GMT</d:getlastmodified></d:prop><d:status>HTTP/1.1 200 OK</d:status></d:propstat></d:response></d:multistatus>"#;
+        let map = parse_propfind(xml).unwrap();
+        eprintln!("parsed map: {:?}", map);
+        assert_eq!(map.len(), 1);
+        assert!(map.contains_key("records/2026/08/2026-08-16.json"));
         assert!(!map.contains_key("records"));
     }
 }

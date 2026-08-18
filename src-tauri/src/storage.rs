@@ -26,11 +26,18 @@ pub struct Structured {
     pub todos: Vec<String>,
 }
 
-/// 单条工作记录
+fn default_kind() -> String {
+    "record".to_string()
+}
+
+/// 单条记录（工作记录或待办，kind 区分）
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct RecordEntry {
     pub id: String,
+    /// "record" = 工作记录，"todo" = 待办
+    #[serde(default = "default_kind")]
+    pub kind: String,
     pub created_at: String,
     pub updated_at: String,
     pub raw_text: String,
@@ -50,9 +57,13 @@ pub struct DayRecord {
 
 /// 某天的记录条数（供日历/热力图使用）
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct DayActive {
     pub date: String,
     pub count: usize,
+    /// 待办条数（kind = todo）
+    #[serde(default)]
+    pub todo_count: usize,
 }
 
 fn record_path(date: &str) -> Result<PathBuf, String> {
@@ -107,6 +118,7 @@ pub fn confirm_record(
     let now = chrono::Local::now().to_rfc3339();
     let entry = RecordEntry {
         id: uuid::Uuid::new_v4().to_string(),
+        kind: "record".to_string(),
         created_at: now.clone(),
         updated_at: now,
         raw_text,
@@ -122,6 +134,79 @@ pub fn confirm_record(
     });
     day.entries.push(entry);
     write_day(&day)
+}
+
+/// 添加待办：按行拆分，直接入库（不经过 AI 结构化）
+#[tauri::command]
+pub fn confirm_todo(date: String, text: String) -> Result<(), String> {
+    let lines: Vec<String> = text
+        .split('\n')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
+    if lines.is_empty() {
+        return Err("待办内容不能为空".to_string());
+    }
+    let now = chrono::Local::now().to_rfc3339();
+    let summary = lines[0].clone();
+    let entry = RecordEntry {
+        id: uuid::Uuid::new_v4().to_string(),
+        kind: "todo".to_string(),
+        created_at: now.clone(),
+        updated_at: now,
+        raw_text: text,
+        source_attachments: vec![],
+        model_used: String::new(),
+        status: "confirmed".to_string(),
+        structured: Structured {
+            summary,
+            tasks: lines,
+            tags: vec![],
+            outputs: vec![],
+            flowcharts: vec![],
+            todos: vec![],
+        },
+    };
+    let mut day = read_day(&date)?.unwrap_or(DayRecord {
+        version: 1,
+        date: date.clone(),
+        entries: vec![],
+    });
+    day.entries.push(entry);
+    write_day(&day)
+}
+
+/// 删除某天的某条记录
+#[tauri::command]
+pub fn delete_entry(date: String, entry_id: String) -> Result<(), String> {
+    let mut day = read_day(&date)?.ok_or("该日期没有记录")?;
+    let before = day.entries.len();
+    day.entries.retain(|e| e.id != entry_id);
+    if day.entries.len() == before {
+        return Err("未找到该记录".to_string());
+    }
+    write_day(&day)
+}
+
+/// 更新某天的某条记录的结构化内容（保留原流程图）
+#[tauri::command]
+pub fn update_entry(date: String, entry_id: String, structured: Structured) -> Result<(), String> {
+    let mut day = read_day(&date)?.ok_or("该日期没有记录")?;
+    let entry = day
+        .entries
+        .iter_mut()
+        .find(|e| e.id == entry_id)
+        .ok_or("未找到该记录")?;
+    entry.structured = structured;
+    entry.updated_at = chrono::Local::now().to_rfc3339();
+    write_day(&day)
+}
+
+/// 统计记录数和待办数（kind = todo 计为待办，其余计为记录）
+fn count_kinds(entries: &[RecordEntry]) -> (usize, usize) {
+    entries
+        .iter()
+        .fold((0, 0), |(r, t), e| if e.kind == "todo" { (r, t + 1) } else { (r + 1, t) })
 }
 
 /// 返回某月每天的记录条数（month 形如 "2026-08"）
@@ -144,9 +229,12 @@ pub fn get_month_active(month: String) -> Result<Vec<DayActive>, String> {
         for f in files {
             if let Ok(content) = fs::read_to_string(&f) {
                 if let Ok(day) = serde_json::from_str::<DayRecord>(&content) {
+                    let (count, todo_count) =
+                        count_kinds(&day.entries);
                     result.push(DayActive {
                         date: day.date,
-                        count: day.entries.len(),
+                        count,
+                        todo_count,
                     });
                 }
             }
@@ -177,9 +265,12 @@ pub fn get_year_active(year: String) -> Result<Vec<DayActive>, String> {
                 for f in day_files {
                     if let Ok(content) = fs::read_to_string(&f) {
                         if let Ok(day) = serde_json::from_str::<DayRecord>(&content) {
+                            let (count, todo_count) =
+                                count_kinds(&day.entries);
                             result.push(DayActive {
                                 date: day.date,
-                                count: day.entries.len(),
+                                count,
+                                todo_count,
                             });
                         }
                     }

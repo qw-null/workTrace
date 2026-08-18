@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
-import { api, BACKUP_CHANGED_EVENT } from "../api";
+import { getVersion } from "@tauri-apps/api/app";
+import { api, BACKUP_CHANGED_EVENT, CHECK_UPDATE_EVENT } from "../api";
 import type { BackupSettings, ModelConfig, WebdavConfig } from "../types";
 
-type Tab = "model" | "backup";
+type Tab = "model" | "backup" | "about";
 
 const ROLES: { value: string; label: string }[] = [
   { value: "record", label: "记录转化" },
@@ -38,6 +39,13 @@ const emptyWebdav = (): WebdavConfig => ({
 
 export default function Settings() {
   const [tab, setTab] = useState<Tab>("model");
+  const [version, setVersion] = useState("");
+
+  useEffect(() => {
+    getVersion()
+      .then((v) => setVersion(v))
+      .catch(() => setVersion(""));
+  }, []);
 
   // 大模型
   const [models, setModels] = useState<ModelConfig[]>([]);
@@ -246,6 +254,9 @@ export default function Settings() {
         </button>
         <button className={"set-tab" + (tab === "backup" ? " active" : "")} onClick={() => setTab("backup")}>
           备份
+        </button>
+        <button className={"set-tab" + (tab === "about" ? " active" : "")} onClick={() => setTab("about")}>
+          关于
         </button>
       </div>
 
@@ -483,6 +494,31 @@ export default function Settings() {
               <button className="btn" onClick={saveBackup}>保存同步设置</button>
             </div>
             {syncMsg && <div className="status-line" style={{ marginTop: 12 }}>{syncMsg}</div>}
+          </div>
+        </div>
+      )}
+
+      {tab === "about" && (
+        <div className="set-panel">
+          <div className="card">
+            <h3>关于</h3>
+            <div className="sub">工作日迹 WorkTrace · 本地优先的 AI 工作日志与周报工具</div>
+            <div style={{ marginTop: 14 }}>
+              <div className="weak">当前版本：{version ? `v${version}` : "—"}</div>
+              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+                <button
+                  className="btn btn-primary"
+                  onClick={() => window.dispatchEvent(new Event(CHECK_UPDATE_EVENT))}
+                >
+                  检查更新
+                </button>
+              </div>
+              <div className="weak" style={{ marginTop: 14, fontSize: 12, lineHeight: 1.8 }}>
+                启动时会自动检查更新，也可在此手动检查；发现新版本后确认即可自动下载安装并重启。
+                <br />
+                项目仓库：github.com/qw-null/workTrace
+              </div>
+            </div>
           </div>
         </div>
       )}

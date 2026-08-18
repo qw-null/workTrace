@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
+use std::sync::Mutex;
 
 /// 大模型配置（api_key 存 Keychain，JSON 中不落明文）
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -62,23 +64,79 @@ struct AppSettings {
     webdav: Option<LegacyWebdavConfig>,
 }
 
-const SERVICE: &str = "worktrace";
+/// 密码本地文件存储（不用钥匙串，避免未签名应用反复弹授权框）
+fn secrets_path() -> Result<PathBuf, String> {
+    Ok(crate::data_dir()?.join("settings").join("secrets.json"))
+}
+
+fn load_secrets() -> HashMap<String, String> {
+    secrets_path()
+        .ok()
+        .and_then(|p| fs::read_to_string(p).ok())
+        .and_then(|raw| serde_json::from_str(&raw).ok())
+        .unwrap_or_default()
+}
+
+fn save_secrets(map: &HashMap<String, String>) -> Result<(), String> {
+    let path = secrets_path()?;
+    if let Some(dir) = path.parent() {
+        fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    let json = serde_json::to_string_pretty(map).map_err(|e| e.to_string())?;
+    fs::write(&path, json).map_err(|e| e.to_string())
+}
+
+/// 密码内存缓存：进程内缓存，避免每次同步/测试都读文件
+static SECRET_CACHE: Mutex<Option<HashMap<String, String>>> = Mutex::new(None);
+
+fn cache_get(key: &str) -> Option<String> {
+    SECRET_CACHE
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref()?.get(key).cloned())
+}
+
+fn cache_set(key: &str, value: &str) {
+    if let Ok(mut guard) = SECRET_CACHE.lock() {
+        guard
+            .get_or_insert_with(HashMap::new)
+            .insert(key.to_string(), value.to_string());
+    }
+}
+
+fn cache_remove(key: &str) {
+    if let Ok(mut guard) = SECRET_CACHE.lock() {
+        if let Some(map) = guard.as_mut() {
+            map.remove(key);
+        }
+    }
+}
 
 fn set_secret(key: &str, value: &str) -> Result<(), String> {
-    let entry = keyring::Entry::new(SERVICE, key).map_err(|e| e.to_string())?;
-    entry.set_password(value).map_err(|e| e.to_string())
+    let mut map = load_secrets();
+    map.insert(key.to_string(), value.to_string());
+    save_secrets(&map)?;
+    cache_set(key, value);
+    Ok(())
 }
 
 fn get_secret(key: &str) -> Option<String> {
-    keyring::Entry::new(SERVICE, key)
-        .ok()
-        .and_then(|e| e.get_password().ok())
+    // 先查内存缓存，命中则不再读文件
+    if let Some(v) = cache_get(key) {
+        return Some(v);
+    }
+    let val = load_secrets().get(key).cloned();
+    if let Some(v) = &val {
+        cache_set(key, v);
+    }
+    val
 }
 
 fn delete_secret(key: &str) {
-    if let Ok(entry) = keyring::Entry::new(SERVICE, key) {
-        let _ = entry.delete_password();
-    }
+    let mut map = load_secrets();
+    map.remove(key);
+    let _ = save_secrets(&map);
+    cache_remove(key);
 }
 
 fn settings_path() -> Result<PathBuf, String> {

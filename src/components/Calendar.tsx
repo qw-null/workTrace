@@ -17,6 +17,7 @@ export default function Calendar() {
   const now = new Date();
   const [ym, setYm] = useState({ y: now.getFullYear(), m: now.getMonth() + 1 });
   const [counts, setCounts] = useState<Record<string, number>>({});
+  const [todoCounts, setTodoCounts] = useState<Record<string, number>>({});
   const [selected, setSelected] = useState<string | null>(null);
   const [refresh, setRefresh] = useState(0);
 
@@ -26,10 +27,13 @@ export default function Calendar() {
       .getMonthActive(`${ym.y}-${m}`)
       .then((list) => {
         const map: Record<string, number> = {};
+        const todoMap: Record<string, number> = {};
         list.forEach((d) => {
           map[d.date] = d.count;
+          todoMap[d.date] = d.todoCount;
         });
         setCounts(map);
+        setTodoCounts(todoMap);
       })
       .catch(() => {});
   }, [ym, refresh]);
@@ -62,7 +66,14 @@ export default function Calendar() {
           tileContent={({ date, view }) => {
             if (view !== "month") return null;
             const cnt = counts[dateKey(date)] || 0;
-            return cnt > 0 ? <span className="cal-badge">{cnt}</span> : null;
+            const todoCnt = todoCounts[dateKey(date)] || 0;
+            if (cnt === 0 && todoCnt === 0) return null;
+            return (
+              <span className="cal-badges">
+                {cnt > 0 && <span className="cal-badge">{cnt}</span>}
+                {todoCnt > 0 && <span className="cal-badge cal-badge-todo">{todoCnt}</span>}
+              </span>
+            );
           }}
           formatMonthYear={(_, date) => `${date.getFullYear()} 年 ${date.getMonth() + 1} 月`}
           formatShortWeekday={(_, date) => WEEKDAY_LABELS[date.getDay()]}
