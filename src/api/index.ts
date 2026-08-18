@@ -121,3 +121,12 @@ export const RECORD_CHANGED_EVENT = "worktrace:record-changed";
 
 // 检查更新事件名：设置页「检查更新」按钮触发，App 监听执行
 export const CHECK_UPDATE_EVENT = "worktrace:check-update";
+
+// 更新状态回传事件：App 检查完更新后广播结果，设置页监听显示提示
+export const UPDATE_STATUS_EVENT = "worktrace:update-status";
+
+export interface UpdateStatus {
+  status: "checking" | "uptodate" | "available" | "error";
+  version?: string;
+  message?: string;
+}

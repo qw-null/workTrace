@@ -2,8 +2,8 @@ import { useEffect, useState } from "react";
 import Dashboard from "./views/Dashboard";
 import Report from "./views/Report";
 import Settings from "./views/Settings";
-import { api, BACKUP_CHANGED_EVENT, CHECK_UPDATE_EVENT } from "./api";
-import type { UpdateInfo } from "./api";
+import { api, BACKUP_CHANGED_EVENT, CHECK_UPDATE_EVENT, UPDATE_STATUS_EVENT } from "./api";
+import type { UpdateInfo, UpdateStatus } from "./api";
 import logoUrl from "./assets/logo.svg";
 
 type Page = "dash" | "report" | "settings";
@@ -33,11 +33,30 @@ export default function App() {
   };
 
   const doCheckUpdate = async () => {
+    // 广播「检查中」状态
+    window.dispatchEvent(
+      new CustomEvent<UpdateStatus>(UPDATE_STATUS_EVENT, {
+        detail: { status: "checking" },
+      })
+    );
     try {
       const info = await api.checkUpdate();
       setUpdateInfo(info);
+      window.dispatchEvent(
+        new CustomEvent<UpdateStatus>(UPDATE_STATUS_EVENT, {
+          detail: info
+            ? { status: "available", version: info.version }
+            : { status: "uptodate", version: undefined },
+        })
+      );
     } catch {
-      /* 检查失败忽略（无网络 / 开发环境无更新配置） */
+      // 检查失败（无网络 / 开发环境无更新配置）
+      setUpdateInfo(null);
+      window.dispatchEvent(
+        new CustomEvent<UpdateStatus>(UPDATE_STATUS_EVENT, {
+          detail: { status: "error", message: "检查更新失败，请确认网络或更新服务器是否可用" },
+        })
+      );
     }
   };
 

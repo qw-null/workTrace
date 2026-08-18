@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { getVersion } from "@tauri-apps/api/app";
-import { api, BACKUP_CHANGED_EVENT, CHECK_UPDATE_EVENT } from "../api";
+import { api, BACKUP_CHANGED_EVENT, CHECK_UPDATE_EVENT, UPDATE_STATUS_EVENT } from "../api";
+import type { UpdateStatus } from "../api";
 import type { BackupSettings, ModelConfig, WebdavConfig } from "../types";
 
 type Tab = "model" | "backup" | "about";
@@ -41,10 +42,22 @@ export default function Settings() {
   const [tab, setTab] = useState<Tab>("model");
   const [version, setVersion] = useState("");
 
+  // 检查更新状态
+  const [updateStatus, setUpdateStatus] = useState<UpdateStatus | null>(null);
+
   useEffect(() => {
     getVersion()
       .then((v) => setVersion(v))
       .catch(() => setVersion(""));
+  }, []);
+
+  useEffect(() => {
+    const onStatus = (e: Event) => {
+      const detail = (e as CustomEvent<UpdateStatus>).detail;
+      setUpdateStatus(detail);
+    };
+    window.addEventListener(UPDATE_STATUS_EVENT, onStatus);
+    return () => window.removeEventListener(UPDATE_STATUS_EVENT, onStatus);
   }, []);
 
   // 大模型
@@ -505,13 +518,34 @@ export default function Settings() {
             <div className="sub">工作日迹 WorkTrace · 本地优先的 AI 工作日志与周报工具</div>
             <div style={{ marginTop: 14 }}>
               <div className="weak">当前版本：{version ? `v${version}` : "—"}</div>
-              <div style={{ display: "flex", gap: 10, marginTop: 14 }}>
+              <div style={{ display: "flex", gap: 10, marginTop: 14, alignItems: "center" }}>
                 <button
                   className="btn btn-primary"
                   onClick={() => window.dispatchEvent(new Event(CHECK_UPDATE_EVENT))}
+                  disabled={updateStatus?.status === "checking"}
                 >
-                  检查更新
+                  {updateStatus?.status === "checking" ? "检查中…" : "检查更新"}
                 </button>
+                {updateStatus && (
+                  <span
+                    className="weak"
+                    style={{
+                      fontSize: 13,
+                      color:
+                        updateStatus.status === "available"
+                          ? "var(--green)"
+                          : updateStatus.status === "error"
+                          ? "var(--red)"
+                          : undefined,
+                    }}
+                  >
+                    {updateStatus.status === "checking" && "正在检查最新版本…"}
+                    {updateStatus.status === "uptodate" && "已是最新版本"}
+                    {updateStatus.status === "available" &&
+                      `发现新版本 v${updateStatus.version}，可在顶部横幅点击更新`}
+                    {updateStatus.status === "error" && updateStatus.message}
+                  </span>
+                )}
               </div>
               <div className="weak" style={{ marginTop: 14, fontSize: 12, lineHeight: 1.8 }}>
                 启动时会自动检查更新，也可在此手动检查；发现新版本后确认即可自动下载安装并重启。
