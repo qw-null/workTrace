@@ -70,6 +70,9 @@ export default function Report() {
   const [error, setError] = useState("");
   const [exportPath, setExportPath] = useState("");
   const [savedMsg, setSavedMsg] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [editContent, setEditContent] = useState("");
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api
@@ -88,6 +91,7 @@ export default function Report() {
     setError("");
     setExportPath("");
     setSavedMsg("");
+    setEditing(false);
     const ws = fmtDate(weekStart);
     api
       .getReport(ws)
@@ -128,6 +132,35 @@ export default function Report() {
     }
   };
 
+  const startEdit = () => {
+    if (!report) return;
+    setEditContent(report.content);
+    setEditing(true);
+    setError("");
+    setSavedMsg("");
+  };
+
+  const cancelEdit = () => {
+    setEditing(false);
+    setEditContent("");
+  };
+
+  const saveEdit = async () => {
+    if (!report) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api.saveReport(report.weekStart, editContent);
+      setReport({ ...report, content: editContent, generatedAt: new Date().toISOString() });
+      setEditing(false);
+      setSavedMsg("修改已保存");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setSaving(false);
+    }
+  };
+
   return (
     <div>
       <div className="report-toolbar">
@@ -155,10 +188,15 @@ export default function Report() {
         <button className="btn btn-primary" onClick={generate} disabled={loading}>
           {loading ? "生成中…" : "生成周报"}
         </button>
-        <button className="btn" onClick={() => handleExport("word")} disabled={!report}>
+        {report && !editing && (
+          <button className="btn" onClick={startEdit}>
+            编辑
+          </button>
+        )}
+        <button className="btn" onClick={() => handleExport("word")} disabled={!report || editing}>
           导出 Word
         </button>
-        <button className="btn" onClick={() => handleExport("pdf")} disabled={!report}>
+        <button className="btn" onClick={() => handleExport("pdf")} disabled={!report || editing}>
           导出 PDF
         </button>
       </div>
@@ -180,13 +218,44 @@ export default function Report() {
       )}
 
       {report ? (
-        <div className="report-body">
-          <h1>工作周报（{report.weekStart} – {report.weekEnd}）</h1>
-          <div className="report-meta">
-            生成于 {new Date(report.generatedAt).toLocaleString()} · 模型 {report.modelUsed}
+        editing ? (
+          <div className="report-body">
+            <h1>工作周报（{report.weekStart} – {report.weekEnd}）</h1>
+            <div className="weak" style={{ marginBottom: 10, fontSize: 12 }}>
+              支持 Markdown：## 标题、- 列表
+            </div>
+            <textarea
+              value={editContent}
+              onChange={(e) => setEditContent(e.target.value)}
+              style={{
+                width: "100%",
+                minHeight: 420,
+                padding: 14,
+                fontSize: 14,
+                lineHeight: 1.8,
+                borderRadius: 10,
+                border: "1px solid var(--border-strong)",
+                boxSizing: "border-box",
+                fontFamily: "inherit",
+                resize: "vertical",
+              }}
+            />
+            <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+              <button className="btn btn-primary" onClick={saveEdit} disabled={saving}>
+                {saving ? "保存中…" : "保存"}
+              </button>
+              <button className="btn" onClick={cancelEdit}>取消</button>
+            </div>
           </div>
-          {renderMarkdown(report.content)}
-        </div>
+        ) : (
+          <div className="report-body">
+            <h1>工作周报（{report.weekStart} – {report.weekEnd}）</h1>
+            <div className="report-meta">
+              生成于 {new Date(report.generatedAt).toLocaleString()} · 模型 {report.modelUsed}
+            </div>
+            {renderMarkdown(report.content)}
+          </div>
+        )
       ) : (
         !loading && (
           <div className="report-body">

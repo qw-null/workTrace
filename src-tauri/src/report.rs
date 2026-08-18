@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use crate::ai::chat_completion;
 use crate::storage;
 
-const REPORT_SYSTEM: &str = "你是工作周报生成助手。根据本周的工作记录，生成一份周报，Markdown 格式，包含以下四个板块：\n\n## 本周完成事项\n## 关键成果 / 亮点\n## 问题与风险\n## 下周计划\n\n要求：\n1. 忠实记录内容，不编造、不夸大。\n2. 用简洁的要点列表（- 开头）。\n3. 标记为【待办】的条目是尚未完成的待办事项，应归入「下周计划」板块，不要当作已完成事项。\n4. 若某板块没有对应内容，写「无」。\n5. 只输出 Markdown 正文，不要额外解释。";
+const REPORT_SYSTEM: &str = "你是工作周报生成助手。根据本周的工作记录，生成一份周报，Markdown 格式，包含以下四个板块：\n\n## 本周完成事项\n## 关键成果 / 亮点\n## 问题与风险\n## 下周计划\n\n要求：\n1. 忠实记录内容，不编造、不夸大。\n2. 用简洁的要点列表（- 开头）。\n3. 对每条事项，请结合其「时间」和内容语义综合判断归属，而不是机械分类：\n   - 时间已经过去、或明确落在本周范围内、或明确表述为已完成的活动 → 归入「本周完成事项」；\n   - 时间在未来、或明确是尚未开始的安排、或语义上是「下一步要做」的 → 归入「下周计划」。\n   - 标注「来源：待办」的条目并不代表一定未完成：若其时间地点落在本周内（例如本周四要参加的活动），应归入「本周完成事项」；仅当它明显是未来的安排或尚未开始的行动时才归入「下周计划」。\n4. 本周日期范围在输入的开头给出，判断「本周四」「明天」等相对时间时以此为准。\n5. 若某板块没有对应内容，写「无」。\n6. 只输出 Markdown 正文，不要额外解释。";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -26,6 +26,7 @@ pub async fn generate_report(week_start: String, model_id: String) -> Result<Rep
 
     // 汇总本周 7 天的记录
     let mut summary = String::new();
+    summary.push_str(&format!("本周日期范围：{week_start} 至 {week_end}\n\n"));
     let mut total = 0usize;
     for i in 0..7 {
         let date = (start + Duration::days(i)).format("%Y-%m-%d").to_string();
@@ -37,22 +38,55 @@ pub async fn generate_report(week_start: String, model_id: String) -> Result<Rep
             for e in &day.entries {
                 let s = &e.structured;
                 if e.kind == "todo" {
-                    // 待办条目：明确标记，供 AI 归入「下周计划」
-                    if !s.tasks.is_empty() {
-                        summary.push_str(&format!("- 【待办】{}\n", s.tasks.join("；")));
+                    // 待办条目：保留时间地点/注意点信息，标注来源，交由 AI 按时间语义归类
+                    if !s.todo_items.is_empty() {
+                        for t in &s.todo_items {
+                            let mut line = format!("- 事项：{}", t.item);
+                            if !t.time_location.is_empty() && t.time_location != "无" {
+                                line.push_str(&format!("（时间地点：{}）", t.time_location));
+                            }
+                            if !t.note.is_empty() && t.note != "无" {
+                                line.push_str(&format!("（注意点：{}）", t.note));
+                            }
+                            line.push_str("（来源：待办）");
+                            summary.push_str(&format!("{line}\n"));
+                        }
+                    } else if !s.tasks.is_empty() {
+                        // 兼容旧数据
+                        summary.push_str(&format!("- 事项：{}（来源：待办）\n", s.tasks.join("；")));
                     } else {
-                        summary.push_str(&format!("- 【待办】{}\n", s.summary));
+                        summary.push_str(&format!("- 事项：{}（来源：待办）\n", s.summary));
                     }
                 } else {
-                    summary.push_str(&format!("- 摘要：{}\n", s.summary));
-                    if !s.tasks.is_empty() {
-                        summary.push_str(&format!("  任务：{}\n", s.tasks.join("；")));
-                    }
-                    if !s.outputs.is_empty() {
-                        summary.push_str(&format!("  产出：{}\n", s.outputs.join("；")));
-                    }
-                    if !s.todos.is_empty() {
-                        summary.push_str(&format!("  待办：{}\n", s.todos.join("；")));
+                    // 工作记录：优先用新字段 records
+                    if !s.records.is_empty() {
+                        for r in &s.records {
+                            summary.push_str(&format!("- 工作内容：{}\n", r.content));
+                            if !r.time.is_empty() && r.time != "无" {
+                                summary.push_str(&format!("  时间：{}\n", r.time));
+                            }
+                            if !r.progress.is_empty() && r.progress != "无" {
+                                summary.push_str(&format!("  进度/结果：{}\n", r.progress));
+                            }
+                            if !r.people.is_empty() && r.people != "无" {
+                                summary.push_str(&format!("  相关人员：{}\n", r.people));
+                            }
+                            if !r.next.is_empty() && r.next != "无" {
+                                summary.push_str(&format!("  备注/下一步：{}\n", r.next));
+                            }
+                        }
+                    } else {
+                        // 兼容旧数据
+                        summary.push_str(&format!("- 摘要：{}\n", s.summary));
+                        if !s.tasks.is_empty() {
+                            summary.push_str(&format!("  任务：{}\n", s.tasks.join("；")));
+                        }
+                        if !s.outputs.is_empty() {
+                            summary.push_str(&format!("  产出：{}\n", s.outputs.join("；")));
+                        }
+                        if !s.todos.is_empty() {
+                            summary.push_str(&format!("  待办：{}\n", s.todos.join("；")));
+                        }
                     }
                 }
             }
@@ -111,6 +145,20 @@ pub fn get_report(week_start: String) -> Result<Option<Report>, String> {
         generated_at,
         model_used: String::new(),
     }))
+}
+
+/// 保存（覆盖）某周编辑后的周报内容
+#[tauri::command]
+pub fn save_report(week_start: String, content: String) -> Result<(), String> {
+    let start = NaiveDate::parse_from_str(&week_start, "%Y-%m-%d")
+        .map_err(|e| format!("周起始日期格式错误: {e}"))?;
+    let iso = start.iso_week();
+    let filename = format!("reports/{}-W{:02}.md", iso.year(), iso.week());
+    let path = crate::data_dir()?.join(&filename);
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    }
+    std::fs::write(&path, &content).map_err(|e| e.to_string())
 }
 
 /// 导出周报：word 生成 .doc（HTML 内容，Word/WPS 可打开），pdf 生成 .html（可打印），返回保存路径

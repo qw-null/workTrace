@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, RECORD_CHANGED_EVENT } from "../api";
-import type { DayRecord, RecordEntry, Structured } from "../types";
-import FlowDiagram from "./FlowDiagram";
+import type { DayRecord, RecordEntry, RecordField, Structured, TodoField } from "../types";
 
 interface Props {
   date: string;
@@ -17,22 +16,14 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
   fontFamily: "inherit",
 };
-const taStyle: React.CSSProperties = {
-  ...inputStyle,
-  minHeight: 60,
-  resize: "vertical",
-};
 
 export default function DetailModal({ date, onClose }: Props) {
   const [record, setRecord] = useState<DayRecord | null>(null);
   const [loading, setLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [confirmingId, setConfirmingId] = useState<string | null>(null);
-  const [editSummary, setEditSummary] = useState("");
-  const [editTags, setEditTags] = useState("");
-  const [editTasks, setEditTasks] = useState("");
-  const [editOutputs, setEditOutputs] = useState("");
-  const [editTodos, setEditTodos] = useState("");
+  const [editRecords, setEditRecords] = useState<RecordField[]>([]);
+  const [editTodos, setEditTodos] = useState<TodoField[]>([]);
   const [error, setError] = useState("");
 
   const reload = () => {
@@ -51,11 +42,13 @@ export default function DetailModal({ date, onClose }: Props) {
 
   const startEdit = (e: RecordEntry) => {
     setEditingId(e.id);
-    setEditSummary(e.structured.summary || "");
-    setEditTags(e.structured.tags.join(", "));
-    setEditTasks(e.structured.tasks.join("\n"));
-    setEditOutputs(e.structured.outputs.join("\n"));
-    setEditTodos(e.structured.todos.join("\n"));
+    if (e.kind === "todo") {
+      setEditTodos(e.structured.todoItems.length > 0 ? e.structured.todoItems : []);
+      setEditRecords([]);
+    } else {
+      setEditRecords(e.structured.records.length > 0 ? e.structured.records : []);
+      setEditTodos([]);
+    }
     setError("");
   };
 
@@ -64,26 +57,37 @@ export default function DetailModal({ date, onClose }: Props) {
     setError("");
   };
 
-  const splitLines = (s: string) =>
-    s
-      .split("\n")
-      .map((x) => x.trim())
-      .filter(Boolean);
-  const splitTags = (s: string) =>
-    s
-      .split(/[,，]/)
-      .map((x) => x.trim())
-      .filter(Boolean);
+  // 更新某条记录字段
+  const setRecordField = (i: number, key: keyof RecordField, val: string) => {
+    setEditRecords((prev) => prev.map((r, idx) => (idx === i ? { ...r, [key]: val } : r)));
+  };
+  const addRecord = () => {
+    setEditRecords((prev) => [...prev, { time: "", content: "", progress: "", people: "", next: "" }]);
+  };
+  const removeRecord = (i: number) => {
+    setEditRecords((prev) => prev.filter((_, idx) => idx !== i));
+  };
+
+  // 更新某条待办字段
+  const setTodoField = (i: number, key: keyof TodoField, val: string) => {
+    setEditTodos((prev) => prev.map((t, idx) => (idx === i ? { ...t, [key]: val } : t)));
+  };
+  const addTodo = () => {
+    setEditTodos((prev) => [...prev, { timeLocation: "", item: "", note: "" }]);
+  };
+  const removeTodo = (i: number) => {
+    setEditTodos((prev) => prev.filter((_, idx) => idx !== i));
+  };
 
   const saveEdit = async (e: RecordEntry) => {
-    const structured: Structured = {
-      summary: editSummary.trim(),
-      tasks: splitLines(editTasks),
-      tags: splitTags(editTags),
-      outputs: splitLines(editOutputs),
-      flowcharts: e.structured.flowcharts,
-      todos: splitLines(editTodos),
-    };
+    let structured: Structured;
+    if (e.kind === "todo") {
+      const items = editTodos.filter((t) => t.item.trim());
+      structured = { ...e.structured, todoItems: items };
+    } else {
+      const items = editRecords.filter((r) => r.content.trim());
+      structured = { ...e.structured, records: items };
+    }
     try {
       await api.updateEntry(date, e.id, structured);
       setEditingId(null);
@@ -138,46 +142,97 @@ export default function DetailModal({ date, onClose }: Props) {
               <div className="weak" style={{ marginBottom: 8 }}>
                 {e.kind === "todo" ? "编辑待办" : "编辑记录"}
               </div>
-              <label className="weak" style={{ fontSize: 12 }}>摘要</label>
-              <input
-                style={inputStyle}
-                value={editSummary}
-                onChange={(ev) => setEditSummary(ev.target.value)}
-                placeholder="一句话摘要"
-              />
-              {e.kind !== "todo" && (
+              {e.kind === "todo" ? (
                 <>
-                  <label className="weak" style={{ fontSize: 12, display: "block", marginTop: 8 }}>标签（逗号分隔）</label>
-                  <input
-                    style={inputStyle}
-                    value={editTags}
-                    onChange={(ev) => setEditTags(ev.target.value)}
-                    placeholder="如：开发, 修复"
-                  />
+                  {editTodos.map((t, i) => (
+                    <div key={i} className="edit-block">
+                      <div className="weak" style={{ fontSize: 12, marginBottom: 4 }}>
+                        待办 {i + 1}
+                        {editTodos.length > 1 && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ marginLeft: 8 }}
+                            onClick={() => removeTodo(i)}
+                          >
+                            删除
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        style={inputStyle}
+                        value={t.item}
+                        onChange={(ev) => setTodoField(i, "item", ev.target.value)}
+                        placeholder="事项"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={t.timeLocation}
+                        onChange={(ev) => setTodoField(i, "timeLocation", ev.target.value)}
+                        placeholder="时间地点（无则留空）"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={t.note}
+                        onChange={(ev) => setTodoField(i, "note", ev.target.value)}
+                        placeholder="注意点（无则留空）"
+                      />
+                    </div>
+                  ))}
+                  <button className="btn btn-sm" style={{ marginTop: 6 }} onClick={addTodo}>
+                    + 添加待办
+                  </button>
                 </>
-              )}
-              <label className="weak" style={{ fontSize: 12, display: "block", marginTop: 8 }}>
-                {e.kind === "todo" ? "待办列表（每行一项）" : "任务（每行一项）"}
-              </label>
-              <textarea
-                style={taStyle}
-                value={editTasks}
-                onChange={(ev) => setEditTasks(ev.target.value)}
-              />
-              {e.kind !== "todo" && (
+              ) : (
                 <>
-                  <label className="weak" style={{ fontSize: 12, display: "block", marginTop: 8 }}>产出（每行一项）</label>
-                  <textarea
-                    style={taStyle}
-                    value={editOutputs}
-                    onChange={(ev) => setEditOutputs(ev.target.value)}
-                  />
-                  <label className="weak" style={{ fontSize: 12, display: "block", marginTop: 8 }}>待办（每行一项）</label>
-                  <textarea
-                    style={taStyle}
-                    value={editTodos}
-                    onChange={(ev) => setEditTodos(ev.target.value)}
-                  />
+                  {editRecords.map((r, i) => (
+                    <div key={i} className="edit-block">
+                      <div className="weak" style={{ fontSize: 12, marginBottom: 4 }}>
+                        记录 {i + 1}
+                        {editRecords.length > 1 && (
+                          <button
+                            className="btn btn-sm"
+                            style={{ marginLeft: 8 }}
+                            onClick={() => removeRecord(i)}
+                          >
+                            删除
+                          </button>
+                        )}
+                      </div>
+                      <input
+                        style={inputStyle}
+                        value={r.content}
+                        onChange={(ev) => setRecordField(i, "content", ev.target.value)}
+                        placeholder="工作内容"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={r.time}
+                        onChange={(ev) => setRecordField(i, "time", ev.target.value)}
+                        placeholder="时间（无则留空）"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={r.progress}
+                        onChange={(ev) => setRecordField(i, "progress", ev.target.value)}
+                        placeholder="进度/结果（无则留空）"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={r.people}
+                        onChange={(ev) => setRecordField(i, "people", ev.target.value)}
+                        placeholder="相关人员（无则留空）"
+                      />
+                      <input
+                        style={{ ...inputStyle, marginTop: 6 }}
+                        value={r.next}
+                        onChange={(ev) => setRecordField(i, "next", ev.target.value)}
+                        placeholder="备注/下一步（无则留空）"
+                      />
+                    </div>
+                  ))}
+                  <button className="btn btn-sm" style={{ marginTop: 6 }} onClick={addRecord}>
+                    + 添加记录
+                  </button>
                 </>
               )}
               <div style={{ marginTop: 12, display: "flex", gap: 8 }}>
@@ -188,37 +243,78 @@ export default function DetailModal({ date, onClose }: Props) {
           ) : (
             <div key={e.id} className="entry">
               {e.kind === "todo" && <span className="entry-kind">待办</span>}
-              <div className="sum">{e.structured.summary || (e.kind === "todo" ? "（待办）" : "（无摘要）")}</div>
-              {e.kind !== "todo" && e.structured.tags.length > 0 && (
-                <div className="tag-row">
-                  {e.structured.tags.map((t, i) => (
-                    <span key={i} className="tag">
-                      {t}
-                    </span>
+              {e.kind === "todo" ? (
+                e.structured.todoItems.length > 0 ? (
+                  e.structured.todoItems.map((t, i) => (
+                    <div key={i} className="task todo-item">
+                      <span className="todo-check">☐</span>
+                      <div>
+                        <div>{t.item || "（无内容）"}</div>
+                        {(t.timeLocation && t.timeLocation !== "无") || (t.note && t.note !== "无") ? (
+                          <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                            {t.timeLocation && t.timeLocation !== "无" && <>时间地点：{t.timeLocation}</>}
+                            {t.timeLocation && t.timeLocation !== "无" && t.note && t.note !== "无" && "；"}
+                            {t.note && t.note !== "无" && <>注意点：{t.note}</>}
+                          </div>
+                        ) : null}
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  // 兼容旧数据
+                  <>
+                    <div className="sum">{e.structured.summary || "（待办）"}</div>
+                    {e.structured.tasks.map((t, i) => (
+                      <div key={i} className="task todo-item">
+                        <span className="todo-check">☐</span>
+                        {t}
+                      </div>
+                    ))}
+                  </>
+                )
+              ) : e.structured.records.length > 0 ? (
+                e.structured.records.map((r, i) => (
+                  <div key={i} className="entry-result-item">
+                    {e.structured.records.length > 1 && (
+                      <div className="weak" style={{ fontSize: 12, marginBottom: 4 }}>
+                        记录 {i + 1}
+                      </div>
+                    )}
+                    <div className="sum">{r.content || "（无内容）"}</div>
+                    {r.time && r.time !== "无" && (
+                      <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>时间：{r.time}</div>
+                    )}
+                    {r.progress && r.progress !== "无" && (
+                      <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>进度/结果：{r.progress}</div>
+                    )}
+                    {r.people && r.people !== "无" && (
+                      <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>相关人员：{r.people}</div>
+                    )}
+                    {r.next && r.next !== "无" && (
+                      <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>备注/下一步：{r.next}</div>
+                    )}
+                  </div>
+                ))
+              ) : (
+                // 兼容旧数据
+                <>
+                  <div className="sum">{e.structured.summary || "（无摘要）"}</div>
+                  {e.structured.tags.length > 0 && (
+                    <div className="tag-row">
+                      {e.structured.tags.map((t, i) => (
+                        <span key={i} className="tag">{t}</span>
+                      ))}
+                    </div>
+                  )}
+                  {e.structured.tasks.map((t, i) => (
+                    <div key={i} className="task">{t}</div>
                   ))}
-                </div>
-              )}
-              {e.structured.tasks.map((t, i) => (
-                <div key={i} className={e.kind === "todo" ? "task todo-item" : "task"}>
-                  {e.kind === "todo" && <span className="todo-check">☐</span>}
-                  {t}
-                </div>
-              ))}
-              {e.structured.outputs.length > 0 && (
-                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
-                  产出：{e.structured.outputs.join("、")}
-                </div>
-              )}
-              {e.structured.flowcharts.map((f, i) => (
-                <div key={i} className="flow">
-                  <div className="flow-label">流程图 · {f.title}</div>
-                  <FlowDiagram code={f.mermaid} />
-                </div>
-              ))}
-              {e.structured.todos.length > 0 && (
-                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
-                  待办：{e.structured.todos.join("、")}
-                </div>
+                  {e.structured.outputs.length > 0 && (
+                    <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                      产出：{e.structured.outputs.join("、")}
+                    </div>
+                  )}
+                </>
               )}
               <div style={{ marginTop: 10, display: "flex", gap: 8 }}>
                 {confirmingId === e.id ? (

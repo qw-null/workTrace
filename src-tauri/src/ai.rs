@@ -1,18 +1,11 @@
 use serde_json::{json, Value};
 
 use crate::settings;
-use crate::storage::Structured;
+use crate::storage::{RecordField, TodoField};
 
-const SCHEMA_DESC: &str = r#"{
-  "summary": "一句话摘要（字符串）",
-  "tasks": ["字符串数组，每项为动宾短语"],
-  "tags": ["字符串数组，分类标签"],
-  "outputs": ["字符串数组，交付产出物"],
-  "flowcharts": [{"title": "字符串", "mermaid": "Mermaid 代码字符串"}],
-  "todos": ["字符串数组，后续待办"]
-}"#;
+const RECORD_SYSTEM_PROMPT: &str = "你是一个专业的职场助理。请将我输入的文本解析并拆分为多条独立的工作记录。\n如果文本中包含多项工作内容，请务必自动拆分，并使用\"### 记录 1\"、\"### 记录 2\"等标题区分。\n每条记录必须严格按照以下格式输出，不要添加任何多余的说明或问候语：\n\n### 记录 [序号]\n时间：[日期/时间段]\n工作内容：[具体做了什么]\n进度/结果：[完成状态、产出或直接结果]\n相关人员：[涉及的对内/对外人员或部门，未提及填\"无\"]\n备注/下一步：[需要留意的问题或后续计划，未提及填\"无\"]";
 
-const SYSTEM_PROMPT: &str = "你是工作日志结构化助手。把用户的工作记录（可能包含文字、从 Word/PDF 提取的文本、图片内容说明）转化为结构化 JSON。\n只输出一个合法 JSON 对象，不要输出任何其他文字、注释或 Markdown 代码块。\n\n输出 Schema（严格遵守，字段名与类型必须完全一致）：\n{\n  \"summary\": \"一句话摘要（字符串）\",\n  \"tasks\": [\"字符串数组，每项为动宾短语\"],\n  \"tags\": [\"字符串数组，分类标签\"],\n  \"outputs\": [\"字符串数组，交付产出物\"],\n  \"flowcharts\": [{\"title\": \"字符串\", \"mermaid\": \"Mermaid 代码字符串\"}],\n  \"todos\": [\"字符串数组，后续待办\"]\n}\n\n硬性要求：\n1. tasks、tags、outputs、todos 都必须是「字符串数组」——数组里每个元素都是字符串，禁止使用对象或嵌套结构。\n2. flowcharts 数组的每个元素是含 title、mermaid 两个字符串字段的对象。\n3. 忠实原文，不编造、不夸大。\n4. 只有内容存在清晰流程/逻辑关系时才生成 flowcharts，最多 2 个，节点文字简短。\n5. 无法判断的字段用空数组或空字符串。";
+const TODO_SYSTEM_PROMPT: &str = "你是一个专业的日程秘书。请将我输入的文本解析并拆分为多条独立的待办事项。\n如果文本中只包含一件事，则只输出一组；如果包含多件事，请务必自动拆分，并使用\"### 待办 1\"、\"### 待办 2\"等标题进行区分。\n每条待办事项必须严格按照以下格式输出，不要添加任何多余的说明、问候语或总结：\n\n### 待办 [序号]\n时间地点：[提取的时间和地点，如果原文未提及请填\"无\"]\n事项：[核心待办事项]\n注意点：[需要留意的事项、物品或特别提醒，如果原文未提及请填\"无\"]";
 
 /// 通用 OpenAI 兼容对话调用，返回助手回复文本
 pub async fn chat_completion(model_id: &str, system: &str, user: &str) -> Result<String, String> {
@@ -75,39 +68,119 @@ pub async fn chat_completion(model_id: &str, system: &str, user: &str) -> Result
         .ok_or_else(|| "模型响应缺少 content".to_string())
 }
 
-/// 把原始输入交给指定模型转化为结构化记录
+/// 把原始输入交给指定模型转化为多条工作记录
 #[tauri::command]
-pub async fn transform_record(input: String, model_id: String) -> Result<Structured, String> {
-    let content = chat_completion(&model_id, SYSTEM_PROMPT, &input).await?;
-    match parse_structured(&content) {
-        Ok(s) => Ok(s),
-        Err(first_err) => {
-            // 首次解析失败（常见于推理模型不严格遵循 Schema），反馈错误让模型修正一次
-            let fix_prompt = format!(
-                "你上一次输出的内容不符合要求的 JSON Schema，无法解析，错误信息：{first_err}\n\n请严格按照下面的 Schema 重新输出，tasks/tags/outputs/todos 必须是字符串数组，不要输出任何解释文字或 Markdown 代码块：\n{SCHEMA_DESC}"
-            );
-            let fixed = chat_completion(&model_id, &fix_prompt, &input).await?;
-            parse_structured(&fixed).map_err(|e| {
-                format!("模型输出格式不正确：{first_err}（自动修正后仍失败：{e}）")
-            })
-        }
+pub async fn transform_record(input: String, model_id: String) -> Result<Vec<RecordField>, String> {
+    let content = chat_completion(&model_id, RECORD_SYSTEM_PROMPT, &input).await?;
+    let records = parse_record_text(&content)?;
+    if records.is_empty() {
+        return Err("模型未解析出有效记录".to_string());
     }
+    Ok(records)
 }
 
-/// 从模型返回的 content 中提取并解析 Structured（兼容 ```json 代码块包裹）
-fn parse_structured(content: &str) -> Result<Structured, String> {
-    let mut s = content.trim();
-    if let Some(stripped) = s.strip_prefix("```json").or_else(|| s.strip_prefix("```")) {
-        s = stripped;
+/// 把待办输入交给指定模型转化为多条待办
+#[tauri::command]
+pub async fn transform_todo(input: String, model_id: String) -> Result<Vec<TodoField>, String> {
+    let content = chat_completion(&model_id, TODO_SYSTEM_PROMPT, &input).await?;
+    let todos = parse_todo_text(&content)?;
+    if todos.is_empty() {
+        return Err("模型未解析出有效待办".to_string());
     }
-    if let Some(stripped) = s.strip_suffix("```") {
-        s = stripped;
-    }
-    let s = s.trim();
+    Ok(todos)
+}
 
-    let start = s.find('{').ok_or("返回内容不是 JSON")?;
-    let end = s.rfind('}').ok_or("返回内容不是 JSON")?;
-    serde_json::from_str(&s[start..=end]).map_err(|e| format!("解析结构化结果失败: {e}"))
+/// 解析记录文本：按「### 记录 N」分块，提取每块的字段行
+fn parse_record_text(content: &str) -> Result<Vec<RecordField>, String> {
+    let blocks = split_blocks(content, "记录");
+    let mut records: Vec<RecordField> = vec![];
+    for block in blocks {
+        let mut f = RecordField::default();
+        let mut has_content = false;
+        for line in block.lines() {
+            let line = line.trim();
+            if let Some((k, v)) = split_kv(line) {
+                match k.as_str() {
+                    "时间" => f.time = v,
+                    "工作内容" | "内容" => {
+                        f.content = v;
+                        has_content = true;
+                    }
+                    "进度/结果" | "进度" | "结果" => f.progress = v,
+                    "相关人员" | "人员" => f.people = v,
+                    "备注/下一步" | "备注" | "下一步" => f.next = v,
+                    _ => {}
+                }
+            }
+        }
+        if has_content || !f.time.is_empty() {
+            records.push(f);
+        }
+    }
+    Ok(records)
+}
+
+/// 解析待办文本：按「### 待办 N」分块，提取每块的字段行
+fn parse_todo_text(content: &str) -> Result<Vec<TodoField>, String> {
+    let blocks = split_blocks(content, "待办");
+    let mut todos: Vec<TodoField> = vec![];
+    for block in blocks {
+        let mut f = TodoField::default();
+        let mut has_item = false;
+        for line in block.lines() {
+            let line = line.trim();
+            if let Some((k, v)) = split_kv(line) {
+                match k.as_str() {
+                    "时间地点" | "时间" | "地点" => f.time_location = v,
+                    "事项" | "内容" => {
+                        f.item = v;
+                        has_item = true;
+                    }
+                    "注意点" | "注意" | "提醒" => f.note = v,
+                    _ => {}
+                }
+            }
+        }
+        if has_item || !f.item.is_empty() {
+            todos.push(f);
+        }
+    }
+    Ok(todos)
+}
+
+/// 把输出按「### 标题 N」标题行切分成块（去掉标题行本身）
+fn split_blocks(content: &str, title: &str) -> Vec<String> {
+    let mut blocks: Vec<String> = vec![];
+    let mut current = String::new();
+    for line in content.lines() {
+        let t = line.trim();
+        if t.starts_with("###") && t.contains(title) {
+            if !current.trim().is_empty() {
+                blocks.push(std::mem::take(&mut current));
+            }
+        } else {
+            current.push_str(line);
+            current.push('\n');
+        }
+    }
+    if !current.trim().is_empty() {
+        blocks.push(current);
+    }
+    blocks
+}
+
+/// 从一行「字段：值」中拆出字段名和值（兼容中英文冒号）
+fn split_kv(line: &str) -> Option<(String, String)> {
+    // 优先中文冒号，否则英文冒号；用 char_indices 拿到准确字节偏移与字符长度
+    let (idx, ch) = line
+        .char_indices()
+        .find(|(_, c)| *c == '：' || *c == ':')?;
+    let key = line[..idx].trim().trim_matches(|c| c == '*' || c == '-').trim();
+    let val = line[idx + ch.len_utf8()..].trim();
+    if key.is_empty() {
+        return None;
+    }
+    Some((key.to_string(), val.to_string()))
 }
 
 fn truncate(s: &str, n: usize) -> String {

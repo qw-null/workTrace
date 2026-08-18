@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { api, RECORD_CHANGED_EVENT } from "../api";
-import type { ModelConfig, Structured } from "../types";
-import FlowDiagram from "./FlowDiagram";
+import type { ModelConfig, RecordField, TodoField } from "../types";
 
 // 输入草稿的本地持久化键：切换页面/重启应用时恢复未提交的内容
 const DRAFT_KEY = "worktrace:input-draft";
@@ -42,7 +41,8 @@ export default function InputBox() {
   });
   const [loading, setLoading] = useState(false);
   const [parsing, setParsing] = useState(false);
-  const [result, setResult] = useState<Structured | null>(null);
+  const [records, setRecords] = useState<RecordField[] | null>(null);
+  const [todos, setTodos] = useState<TodoField[] | null>(null);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState("");
   const [mode, setMode] = useState<"record" | "todo">("record");
@@ -84,10 +84,16 @@ export default function InputBox() {
     setLoading(true);
     setError("");
     setSaved("");
-    setResult(null);
+    setRecords(null);
+    setTodos(null);
     try {
-      const structured = await api.transformRecord(text.trim(), modelId);
-      setResult(structured);
+      if (mode === "todo") {
+        const items = await api.transformTodo(text.trim(), modelId);
+        setTodos(items);
+      } else {
+        const items = await api.transformRecord(text.trim(), modelId);
+        setRecords(items);
+      }
     } catch (e) {
       setError(String(e));
     } finally {
@@ -96,29 +102,18 @@ export default function InputBox() {
   };
 
   const confirm = async () => {
-    if (!result) return;
     try {
-      await api.confirmRecord(todayStr(), text.trim(), modelId, result);
-      setSaved("已入库");
-      setResult(null);
-      setText("");
-      try {
-        localStorage.removeItem(DRAFT_KEY);
-      } catch {
-        /* ignore */
+      if (mode === "todo") {
+        if (!todos || todos.length === 0) return;
+        await api.confirmTodo(todayStr(), text.trim(), modelId, todos);
+        setSaved("待办已添加");
+        setTodos(null);
+      } else {
+        if (!records || records.length === 0) return;
+        await api.confirmRecord(todayStr(), text.trim(), modelId, records);
+        setSaved("已入库");
+        setRecords(null);
       }
-      window.dispatchEvent(new Event(RECORD_CHANGED_EVENT));
-    } catch (e) {
-      setError(String(e));
-    }
-  };
-
-  // 待办模式：直接入库（不经过 AI 结构化）
-  const addTodo = async () => {
-    if (!text.trim()) return;
-    try {
-      await api.confirmTodo(todayStr(), text.trim());
-      setSaved("待办已添加");
       setText("");
       try {
         localStorage.removeItem(DRAFT_KEY);
@@ -184,7 +179,7 @@ export default function InputBox() {
           className={"mode-btn" + (mode === "record" ? " active" : "")}
           onClick={() => {
             setMode("record");
-            setResult(null);
+            setRecords(null);
           }}
         >
           记录
@@ -193,34 +188,32 @@ export default function InputBox() {
           className={"mode-btn" + (mode === "todo" ? " active" : "")}
           onClick={() => {
             setMode("todo");
-            setResult(null);
+            setTodos(null);
           }}
         >
           待办
         </button>
       </div>
 
-      {mode === "record" && (
-        <div className="model-pick">
-          <label>模型</label>
-          <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
-            {models
-              .filter((m) => m.role !== "vision")
-              .map((m) => (
-                <option key={m.id} value={m.id}>
-                  {m.name}
-                </option>
-              ))}
-          </select>
-        </div>
-      )}
+      <div className="model-pick">
+        <label>模型</label>
+        <select value={modelId} onChange={(e) => setModelId(e.target.value)}>
+          {models
+            .filter((m) => m.role !== "vision")
+            .map((m) => (
+              <option key={m.id} value={m.id}>
+                {m.name}
+              </option>
+            ))}
+        </select>
+      </div>
 
       <div className="input-area">
         <textarea
           placeholder={
             mode === "record"
               ? "今天做了什么？粘贴文字或图片，或点击下方图标添加 Word / PDF / 图片…"
-              : "添加待办事项，每行一条…"
+              : "添加待办，一句话或多条均可，AI 会拆解成清晰的待办项…"
           }
           value={text}
           onChange={(e) => setText(e.target.value)}
@@ -242,17 +235,11 @@ export default function InputBox() {
             ? "正在识别图片 / 解析附件…"
             : mode === "record"
               ? "点击图标或直接粘贴图片 / 文件"
-              : "每行一条待办，点击即可添加"}
+              : "AI 会拆解为待办项，确认后入库"}
         </span>
-        {mode === "record" ? (
-          <button className="btn btn-primary" onClick={send} disabled={loading}>
-            {loading ? "转化中…" : "发送"}
-          </button>
-        ) : (
-          <button className="btn btn-primary" onClick={addTodo}>
-            添加待办
-          </button>
-        )}
+        <button className="btn btn-primary" onClick={send} disabled={loading}>
+          {loading ? "转化中…" : mode === "todo" ? "添加待办" : "发送"}
+        </button>
       </div>
       <input
         ref={fileRef}
@@ -273,46 +260,63 @@ export default function InputBox() {
         </div>
       )}
 
-      {result && (
+      {mode === "record" && records && (
         <div className="entry-result" style={{ marginTop: 14 }}>
-          <div className="sum">{result.summary || "（无摘要）"}</div>
-          {result.tags.length > 0 && (
-            <div className="tag-row">
-              {result.tags.map((t, i) => (
-                <span key={i} className="tag">
-                  {t}
-                </span>
-              ))}
-            </div>
-          )}
-          {result.tasks.length > 0 && (
-            <div>
-              {result.tasks.map((t, i) => (
-                <div key={i} className="task">
-                  {t}
+          {records.map((r, i) => (
+            <div key={i} className="entry-result-item">
+              <div className="weak" style={{ fontSize: 12, marginBottom: 6 }}>
+                记录 {i + 1}
+              </div>
+              <div className="sum">{r.content || "（无内容）"}</div>
+              {r.time && r.time !== "无" && (
+                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                  时间：{r.time}
                 </div>
-              ))}
-            </div>
-          )}
-          {result.outputs.length > 0 && (
-            <div className="weak" style={{ fontSize: 12, marginTop: 6 }}>
-              产出：{result.outputs.join("、")}
-            </div>
-          )}
-          {result.flowcharts.map((f, i) => (
-            <div key={i} className="flow">
-              <div className="flow-label">流程图 · {f.title}</div>
-              <FlowDiagram code={f.mermaid} />
+              )}
+              {r.progress && r.progress !== "无" && (
+                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                  进度/结果：{r.progress}
+                </div>
+              )}
+              {r.people && r.people !== "无" && (
+                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                  相关人员：{r.people}
+                </div>
+              )}
+              {r.next && r.next !== "无" && (
+                <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                  备注/下一步：{r.next}
+                </div>
+              )}
             </div>
           ))}
-          {result.todos.length > 0 && (
-            <div className="weak" style={{ fontSize: 12, marginTop: 6 }}>
-              待办：{result.todos.join("、")}
-            </div>
-          )}
           <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
             <button className="btn btn-primary" onClick={confirm}>确认入库</button>
-            <button className="btn" onClick={() => setResult(null)}>重新生成</button>
+            <button className="btn" onClick={() => setRecords(null)}>重新生成</button>
+          </div>
+        </div>
+      )}
+
+      {mode === "todo" && todos && (
+        <div className="entry-result" style={{ marginTop: 14 }}>
+          {todos.map((t, i) => (
+            <div key={i} className="task todo-item">
+              <span className="todo-check">☐</span>
+              <div>
+                <div>{t.item || "（无内容）"}</div>
+                {(t.timeLocation && t.timeLocation !== "无") || (t.note && t.note !== "无") ? (
+                  <div className="weak" style={{ fontSize: 12, marginTop: 4 }}>
+                    {t.timeLocation && t.timeLocation !== "无" && <>时间地点：{t.timeLocation}</>}
+                    {t.timeLocation && t.timeLocation !== "无" && t.note && t.note !== "无" && "；"}
+                    {t.note && t.note !== "无" && <>注意点：{t.note}</>}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          ))}
+          <div style={{ marginTop: 12, display: "flex", gap: 10 }}>
+            <button className="btn btn-primary" onClick={confirm}>确认入库</button>
+            <button className="btn" onClick={() => setTodos(null)}>重新生成</button>
           </div>
         </div>
       )}

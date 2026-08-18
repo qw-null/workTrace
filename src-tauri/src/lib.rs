@@ -56,10 +56,12 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .invoke_handler(tauri::generate_handler![
             ai::transform_record,
+            ai::transform_todo,
             ai::test_model,
             parser::parse_attachment,
             report::generate_report,
             report::get_report,
+            report::save_report,
             report::export_report,
             settings::list_models,
             settings::save_model,

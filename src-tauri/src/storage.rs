@@ -9,9 +9,39 @@ pub struct Flowchart {
     pub mermaid: String,
 }
 
-/// AI 转化后的结构化字段
-#[derive(Debug, Clone, Serialize, Deserialize)]
+/// 一条工作记录（记录模式，日程秘书字段）
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct RecordField {
+    #[serde(default)]
+    pub time: String,
+    #[serde(default)]
+    pub content: String,
+    #[serde(default)]
+    pub progress: String,
+    #[serde(default)]
+    pub people: String,
+    #[serde(default)]
+    pub next: String,
+}
+
+/// 一条待办事项（待办模式，日程秘书字段）
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct TodoField {
+    #[serde(default)]
+    pub time_location: String,
+    #[serde(default)]
+    pub item: String,
+    #[serde(default)]
+    pub note: String,
+}
+
+/// AI 转化后的结构化字段（旧字段保留用于历史数据兼容）
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
 pub struct Structured {
+    // —— 旧字段（历史数据，向后兼容）——
     #[serde(default)]
     pub summary: String,
     #[serde(default)]
@@ -24,6 +54,11 @@ pub struct Structured {
     pub flowcharts: Vec<Flowchart>,
     #[serde(default)]
     pub todos: Vec<String>,
+    // —— 新字段（新提示词产出）——
+    #[serde(default)]
+    pub records: Vec<RecordField>,
+    #[serde(default)]
+    pub todo_items: Vec<TodoField>,
 }
 
 fn default_kind() -> String {
@@ -107,13 +142,13 @@ pub fn save_day_record(record: DayRecord) -> Result<(), String> {
     write_day(&record)
 }
 
-/// 把一条 AI 转化结果确认入库（追加到当日记录）
+/// 把 AI 转化出的多条工作记录确认入库（每条 record 存为新字段 records）
 #[tauri::command]
 pub fn confirm_record(
     date: String,
     raw_text: String,
     model_id: String,
-    structured: Structured,
+    records: Vec<RecordField>,
 ) -> Result<(), String> {
     let now = chrono::Local::now().to_rfc3339();
     let entry = RecordEntry {
@@ -125,7 +160,10 @@ pub fn confirm_record(
         source_attachments: vec![],
         model_used: model_id,
         status: "confirmed".to_string(),
-        structured,
+        structured: Structured {
+            records,
+            ..Default::default()
+        },
     };
     let mut day = read_day(&date)?.unwrap_or(DayRecord {
         version: 1,
@@ -136,35 +174,46 @@ pub fn confirm_record(
     write_day(&day)
 }
 
-/// 添加待办：按行拆分，直接入库（不经过 AI 结构化）
+/// 添加待办：把 AI 转化出的多条待办入库；若为空则兜底按行拆分
 #[tauri::command]
-pub fn confirm_todo(date: String, text: String) -> Result<(), String> {
-    let lines: Vec<String> = text
-        .split('\n')
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-        .collect();
-    if lines.is_empty() {
-        return Err("待办内容不能为空".to_string());
+pub fn confirm_todo(
+    date: String,
+    raw_text: String,
+    model_id: String,
+    todo_items: Vec<TodoField>,
+) -> Result<(), String> {
+    let mut items = todo_items;
+    // 兜底：模型未提取出待办项时，按行拆分原文
+    if items.is_empty() {
+        let lines: Vec<String> = raw_text
+            .split('\n')
+            .map(|x| x.trim().to_string())
+            .filter(|x| !x.is_empty())
+            .collect();
+        if lines.is_empty() {
+            return Err("待办内容不能为空".to_string());
+        }
+        items = lines
+            .into_iter()
+            .map(|s| TodoField {
+                item: s,
+                ..Default::default()
+            })
+            .collect();
     }
     let now = chrono::Local::now().to_rfc3339();
-    let summary = lines[0].clone();
     let entry = RecordEntry {
         id: uuid::Uuid::new_v4().to_string(),
         kind: "todo".to_string(),
         created_at: now.clone(),
         updated_at: now,
-        raw_text: text,
+        raw_text,
         source_attachments: vec![],
-        model_used: String::new(),
+        model_used: model_id,
         status: "confirmed".to_string(),
         structured: Structured {
-            summary,
-            tasks: lines,
-            tags: vec![],
-            outputs: vec![],
-            flowcharts: vec![],
-            todos: vec![],
+            todo_items: items,
+            ..Default::default()
         },
     };
     let mut day = read_day(&date)?.unwrap_or(DayRecord {

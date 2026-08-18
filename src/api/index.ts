@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 import { check } from "@tauri-apps/plugin-updater";
-import type { BackupSettings, DayActive, DayRecord, ModelConfig, Report, Structured, WebdavConfig } from "../types";
+import type { BackupSettings, DayActive, DayRecord, ModelConfig, RecordField, Report, Structured, TodoField, WebdavConfig } from "../types";
 
 export interface UpdateInfo {
   version: string;
@@ -18,8 +18,11 @@ export const api = {
   async deleteModel(id: string): Promise<void> {
     return invoke("delete_model", { id });
   },
-  async transformRecord(input: string, modelId: string): Promise<Structured> {
-    return invoke<Structured>("transform_record", { input, modelId });
+  async transformRecord(input: string, modelId: string): Promise<RecordField[]> {
+    return invoke<RecordField[]>("transform_record", { input, modelId });
+  },
+  async transformTodo(input: string, modelId: string): Promise<TodoField[]> {
+    return invoke<TodoField[]>("transform_todo", { input, modelId });
   },
   async testModel(model: ModelConfig): Promise<string> {
     return invoke<string>("test_model", { model });
@@ -41,12 +44,17 @@ export const api = {
     date: string,
     rawText: string,
     modelId: string,
-    structured: Structured
+    records: RecordField[]
   ): Promise<void> {
-    return invoke("confirm_record", { date, rawText, modelId, structured });
+    return invoke("confirm_record", { date, rawText, modelId, records });
   },
-  async confirmTodo(date: string, text: string): Promise<void> {
-    return invoke("confirm_todo", { date, text });
+  async confirmTodo(
+    date: string,
+    rawText: string,
+    modelId: string,
+    todoItems: TodoField[]
+  ): Promise<void> {
+    return invoke("confirm_todo", { date, rawText, modelId, todoItems });
   },
   async deleteEntry(date: string, entryId: string): Promise<void> {
     return invoke("delete_entry", { date, entryId });
@@ -65,6 +73,9 @@ export const api = {
   },
   async getReport(weekStart: string): Promise<Report | null> {
     return invoke<Report | null>("get_report", { weekStart });
+  },
+  async saveReport(weekStart: string, content: string): Promise<void> {
+    return invoke("save_report", { weekStart, content });
   },
   async exportReport(content: string, weekStart: string, format: string): Promise<string> {
     return invoke<string>("export_report", { content, weekStart, format });
