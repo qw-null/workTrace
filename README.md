@@ -1,8 +1,52 @@
+<div align="center">
+
 # 工作日迹 WorkTrace
 
-本地优先、AI 辅助的个人**工作日志与周报**工具（macOS 桌面应用）。
+**记录、回顾、汇报，一条工作台全搞定。**
 
-一句话流程：**统一输入框记录 → AI 转为结构化记录（含流程图）→ 热力图 / 日历可视化回顾 → 一键生成周报 → WebDAV 云盘同步备份**，记录不丢失、多设备可同步。
+本地优先、AI 辅助的个人工作日志与周报工具（macOS / Windows 桌面应用）。
+
+</div>
+
+<div align="center">
+
+[![最新版本](https://img.shields.io/github/v/release/qw-null/workTrace?label=最新版本&color=378ADD)](https://github.com/qw-null/workTrace/releases)
+[![平台 badge](https://img.shields.io/badge/平台-macOS%20%7C%20Windows-378ADD)](https://github.com/qw-null/workTrace/releases/latest)
+[![自动更新](https://img.shields.io/badge/更新-在线自动更新-success)](https://github.com/qw-null/workTrace/releases/latest)
+[![开源](https://img.shields.io/badge/开源-是-success)]()
+<br/>
+**☕ 喜欢这个工具？** [![给个 Star](https://img.shields.io/github/stars/qw-null/workTrace?style=social&label=Star)](https://github.com/qw-null/workTrace)
+
+</div>
+
+<br/>
+
+## 📥 下载安装
+
+> 前往 GitHub Releases 下载 **最新版安装包**，支持 macOS 与 Windows，在线自动更新。
+
+<div align="center">
+
+| 平台 | 安装包 | 架构 |
+|---|---|---|
+| 🍎 macOS | [⬇️ 下载 .dmg](https://github.com/qw-null/workTrace/releases/latest) | Apple Silicon (aarch64) |
+| 🪟 Windows | [⬇️ 下载 .exe](https://github.com/qw-null/workTrace/releases/latest) | x64 |
+
+**软件支持在线自动更新**：发现新版本后一键下载安装并重启，无需手动折腾。
+
+</div>
+
+<br/>
+
+---
+
+## ✨ 一句话流程
+
+**统一输入框记录 → AI 转为结构化记录（时间/工作内容/进度结果/相关人员/备注下一步）→ 热力图 / 日历可视化回顾 → 一键生成周报 → WebDAV 云盘同步备份**，记录不丢失、多设备可同步。
+
+---
+
+<br/>
 
 ## 功能特性
 
