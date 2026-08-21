@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>关于 · 工作日迹 WorkTrace</title>
+<meta name="description" content="关于工作日迹：一款本地优先、AI 辅助的工作记录与周报桌面工具，数据主权属于用户。" />
+<style>
+  :root{
+    --brand:#378ADD; --brand-2:#5B9BE8; --brand-strong:#185FA5; --brand-soft:#EAF3FD;
+    --bg:#ffffff; --bg-2:#f6f9fd; --text:#16202b; --text-2:#56616f; --text-3:#8b95a5;
+    --border:#e7ecf3; --green:#23a06b; --radius:18px;
+    --shadow-sm:0 1px 2px rgba(20,40,70,.06),0 4px 12px rgba(20,40,70,.06);
+    --shadow-md:0 10px 30px rgba(28,72,128,.12);
+    --shadow-lg:0 24px 60px rgba(28,72,128,.18);
+    --maxw:1100px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:var(--text);background:var(--bg);line-height:1.75;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+  a{color:var(--brand);text-decoration:none}
+  img{max-width:100%}
+  .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
+
+  .logo-svg{display:block;flex:none;width:30px;height:30px;border-radius:8px;object-fit:contain;box-shadow:0 3px 8px rgba(20,40,70,.18)}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;color:var(--text);letter-spacing:.3px}
+
+  header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.72);border-bottom:1px solid transparent;transition:.3s}
+  header.scrolled{background:rgba(255,255,255,.88);border-bottom:1px solid var(--border);box-shadow:0 4px 20px rgba(20,40,70,.05)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
+  .nav-links{display:flex;align-items:center;gap:24px}
+  .nav-links a{color:var(--text-2);font-size:14.5px;font-weight:500;transition:.2s}
+  .nav-links a:hover{color:var(--brand)}
+  .nav-cta{padding:8px 18px;border-radius:10px;background:var(--brand);color:#fff!important;font-size:14px;font-weight:600;box-shadow:0 6px 16px rgba(55,138,221,.34)}
+  .nav-cta:hover{background:var(--brand-strong);transform:translateY(-1px)}
+
+  .hero{position:relative;overflow:hidden;padding:80px 0 56px;text-align:center}
+  .hero::before{content:"";position:absolute;inset:0;background:
+      radial-gradient(620px 420px at 18% 12%,rgba(55,138,221,.16),transparent 60%),
+      radial-gradient(560px 380px at 84% 8%,rgba(91,155,232,.18),transparent 60%),
+      radial-gradient(700px 500px at 50% 110%,rgba(55,138,221,.10),transparent 60%),
+      linear-gradient(180deg,#f3f8fe 0%,#ffffff 72%);z-index:-1}
+  .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:1.2px;color:var(--brand);text-transform:uppercase;margin-bottom:14px}
+  h1{font-size:42px;font-weight:700;letter-spacing:-.5px;line-height:1.2;margin-bottom:16px}
+  h1 .grad{background:linear-gradient(120deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
+  .sub{font-size:17.5px;color:var(--text-2);max-width:680px;margin:0 auto}
+
+  section{padding:72px 0}
+  h2{font-size:28px;font-weight:700;letter-spacing:-.3px;text-align:center;margin-bottom:10px}
+  .sec-sub{text-align:center;color:var(--text-2);font-size:15.5px;margin-bottom:46px;max-width:620px;margin-left:auto;margin-right:auto}
+  .lead{max-width:760px;margin:0 auto;text-align:center;font-size:16.5px;color:var(--text-2);line-height:1.9}
+
+  .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
+  .card{position:relative;background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:28px 26px;box-shadow:var(--shadow-sm);transition:.25s;overflow:hidden}
+  .card::before{content:"";position:absolute;left:0;top:0;height:3px;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));transition:.3s}
+  .card:hover{transform:translateY(-5px);box-shadow:var(--shadow-md);border-color:transparent}
+  .card:hover::before{width:100%}
+  .ic-tile{width:46px;height:46px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand-soft),#fff);border:1px solid var(--border);color:var(--brand);margin-bottom:16px;font-size:21px;box-shadow:inset 0 0 0 4px rgba(55,138,221,.04)}
+  .card h3{font-size:17px;font-weight:700;margin-bottom:8px}
+  .card p{font-size:14px;color:var(--text-2);line-height:1.7}
+
+  .aud-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .aud{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:24px 20px;text-align:center;box-shadow:var(--shadow-sm);transition:.25s}
+  .aud:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
+  .aud .emo{font-size:32px;margin-bottom:10px}
+  .aud h3{font-size:15.5px;font-weight:700;margin-bottom:6px}
+  .aud p{font-size:13px;color:var(--text-2)}
+
+  #philosophy{background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  #tech{background:var(--bg-2);border-top:1px solid var(--border)}
+  #cta{background:linear-gradient(180deg,var(--brand-soft),#fff 85%);text-align:center}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:13px 30px;border-radius:12px;font-size:15.5px;font-weight:600;transition:.2s}
+  .btn-primary{background:linear-gradient(135deg,var(--brand),var(--brand-2));color:#fff;box-shadow:0 10px 24px rgba(55,138,221,.36)}
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 32px rgba(55,138,221,.44)}
+
+  footer{padding:40px 0 34px;text-align:center;color:var(--text-3);font-size:13.5px;border-top:1px solid var(--border);background:#fff}
+  footer .brand{justify-content:center;margin-bottom:12px;color:var(--text-2)}
+  footer a{color:var(--text-2);margin:0 6px}
+  footer a:hover{color:var(--brand)}
+  footer .sep{opacity:.4}
+
+  .reveal{opacity:0;transform:translateY(26px);transition:opacity .7s cubic-bezier(.2,.7,.2,1),transform .7s cubic-bezier(.2,.7,.2,1)}
+  .reveal.in{opacity:1;transform:none}
+  .reveal.d1{transition-delay:.08s}.reveal.d2{transition-delay:.16s}.reveal.d3{transition-delay:.24s}
+  .reveal.d4{transition-delay:.32s}
+
+  @media(max-width:880px){.grid{grid-template-columns:repeat(2,1fr)}.aud-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:640px){.nav-links{display:none}h1{font-size:30px}section{padding:54px 0}.grid{grid-template-columns:1fr}.aud-grid{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+
+<header id="hdr">
+  <div class="wrap nav">
+    <div class="brand">
+      <img class="logo-svg" src="assets/logo.svg" width="30" height="30" alt="工作日迹 Logo" />
+      工作日迹
+    </div>
+    <nav class="nav-links">
+      <a href="index.html">返回首页</a>
+    </nav>
+    <a class="nav-cta" href="index.html#download">免费下载</a>
+  </div>
+</header>
+
+<section class="hero">
+  <div class="wrap">
+    <span class="eyebrow reveal">ABOUT</span>
+    <h1 class="reveal d1">关于<span class="grad">工作日迹</span></h1>
+    <p class="sub reveal d2">一款本地优先、AI 辅助的工作记录与周报工具 —— 帮你把每天的痕迹，沉淀成可复用的资产。</p>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <p class="lead reveal">工作日迹不试图成为又一个笔记软件。它只解决一件事：让「记工作」和「写周报」这件每周必做、却最让人头疼的事，变得轻松且可持续。从一个统一输入框开始，AI 把碎片整理成结构，周末把结构变成周报 —— 全程数据留在你手里。</p>
+  </div>
+</section>
+
+<section id="philosophy">
+  <div class="wrap">
+    <span class="eyebrow reveal">我们的理念</span>
+    <h2 class="reveal">把控制权交还给你</h2>
+    <p class="sec-sub reveal">工具应当服务于人，而不是反过来索取你的数据</p>
+    <div class="grid">
+      <div class="card reveal"><div class="ic-tile">🏠</div><h3>本地优先</h3><p>记录与周报默认存于你自己的电脑，透明、可备份、可迁移，不依赖任何云服务。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">🔑</div><h3>数据主权</h3><p>没有账号体系、没有云端数据库。API Key 与密码进系统钥匙串，你随时可整体导出。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">🤖</div><h3>按需 AI</h3><p>只在调用大模型时发送必要片段，绝不用于分析或训练；也支持本机 Ollama 完全离线。</p></div>
+      <div class="card reveal"><div class="ic-tile">🌱</div><h3>开源免费</h3><p>代码公开、下载免费，推送标签即自动打包，社区可审计、可共建。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">🔒</div><h3>附件不上云</h3><p>附件是一次性原料，仅本地临时处理并自动清理，不会被同步到任何地方。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">🔄</div><h3>多端一致</h3><p>通过 WebDAV 多账号备份，换设备也能保持记录一致，永不丢失。</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow reveal">核心能力</span>
+    <h2 class="reveal">一条链路走完工作</h2>
+    <p class="sec-sub reveal">从「想到什么」到「周报归档」，无需在多个软件间切换</p>
+    <div class="grid">
+      <div class="card reveal"><div class="ic-tile">⌨</div><h3>统一记录</h3><p>文字键入，图片 / Word / PDF 拖拽或粘贴即识别，一个入口收口所有碎片。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">✦</div><h3>AI 结构化</h3><p>按「职场助理 / 日程秘书」拆成时间、内容、进度、相关人字段，忠实原文不编造。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">▤</div><h3>一键周报</h3><p>生成「成果 / 进行中 / 计划 / 风险」四板块，可在线编辑并导出 Word / PDF。</p></div>
+      <div class="card reveal"><div class="ic-tile">▦</div><h3>热力图 &amp; 日历</h3><p>年度热力图 + 月历联动，每日工作量与待办密度一目了然。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">◑</div><h3>多模型</h3><p>OpenAI 兼容协议 + 本地 Ollama，多模型按用途分工并测试连通性。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">☁</div><h3>WebDAV 备份</h3><p>坚果云 / InfiniCLOUD / 自建，多账号切换、自动认证、跨设备同步。</p></div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="wrap">
+    <span class="eyebrow reveal">适合谁</span>
+    <h2 class="reveal">只要每周要交周报，它就合适</h2>
+    <p class="sec-sub reveal">不同角色，同一个顺手的工作流</p>
+    <div class="aud-grid">
+      <div class="aud reveal"><div class="emo">💼</div><h3>职场执行者</h3><p>琐事多、怕漏报，随手记一笔，周报自动有料。</p></div>
+      <div class="aud reveal d1"><div class="emo">🧭</div><h3>团队管理者</h3><p>用统一结构看成员进展，周会前先瞄热力图。</p></div>
+      <div class="aud reveal d2"><div class="emo">🔬</div><h3>研究 / 项目人员</h3><p>长周期任务拆成记录与待办，进度不再靠回忆。</p></div>
+      <div class="aud reveal d3"><div class="emo">✍️</div><h3>自由职业者</h3><p>本地沉淀工作资产，向客户交付时有据可查。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="tech">
+  <div class="wrap">
+    <span class="eyebrow reveal">技术底气</span>
+    <h2 class="reveal">轻量、稳健、可审计</h2>
+    <p class="sec-sub reveal">为长期使用而生</p>
+    <div class="grid">
+      <div class="card reveal"><div class="ic-tile">⚡</div><h3>Tauri 2</h3><p>Rust 后端 + React 前端，安装包小、启动快、资源占用低。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">🗂</div><h3>纯文件存储</h3><p>记录以 JSON 落盘，无数据库依赖，随时可被任意工具读取与迁移。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">🛡</div><h3>自动更新</h3><p>内置更新检查，发现新版本一键下载安装并重启；托盘驻留不打扰。</p></div>
+      <div class="card reveal"><div class="ic-tile">🏗</div><h3>CI 打包</h3><p>推送版本标签即触发 GitHub Actions，自动产出 macOS / Windows 安装包。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">🔌</div><h3>多协议同步</h3><p>WebDAV Basic + Digest 自动切换，兼容主流网盘与自建服务。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">👁</div><h3>开放可查</h3><p>开源代码与更新日志公开，安全与迭代对社区透明。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="cta">
+  <div class="wrap">
+    <span class="eyebrow reveal">开始使用</span>
+    <h2 class="reveal">让你的工作痕迹，自动长成周报</h2>
+    <p class="sec-sub reveal">开源免费，下载即用</p>
+    <div class="reveal d1">
+      <a class="btn btn-primary" href="index.html#download">免费下载</a>
+      <a class="btn btn-primary" style="background:#fff;color:var(--brand);box-shadow:var(--shadow-sm)" href="index.html">返回首页了解详情</a>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <div class="brand">
+      <img class="logo-svg" src="assets/logo.svg" width="26" height="26" alt="工作日迹 Logo" />
+      工作日迹 · WorkTrace
+    </div>
+    <p><a href="index.html">首页</a><span class="sep"> · </span><a href="https://github.com/qw-null/workTrace">GitHub 仓库</a><span class="sep"> · </span><a href="https://github.com/qw-null/workTrace/releases">Releases</a></p>
+    <p style="margin-top:10px;opacity:.7">本地优先的 AI 工作日志与周报工具 · 数据主权属于用户</p>
+  </div>
+</footer>
+
+<script>
+  const hdr=document.getElementById('hdr');
+  const onScroll=()=>hdr.classList.toggle('scrolled',window.scrollY>10);
+  onScroll();window.addEventListener('scroll',onScroll,{passive:true});
+  const io=new IntersectionObserver((es)=>{es.forEach(e=>{if(e.isIntersecting){e.target.classList.add('in');io.unobserve(e.target);}});},{threshold:.12,rootMargin:'0px 0px -8% 0px'});
+  document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+</script>
+
+</body>
+</html>
