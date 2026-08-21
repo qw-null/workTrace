@@ -4,7 +4,7 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>工作日迹 WorkTrace · 本地优先的 AI 工作日志与周报工具</title>
-<meta name="description" content="统一输入框记录 → AI 结构化 → 热力图/日历回顾 → 一键周报 → WebDAV 备份。本地优先，macOS/Windows 桌面应用。" />
+<meta name="description" content="统一输入框记录 → AI 结构化 → 热力图/日历回顾 → 一键周报 → WebDAV 备份。本地优先，macOS/Windows 桌面应用，开源免费。" />
 <style>
   :root{
     --brand:#378ADD; --brand-2:#5B9BE8; --brand-strong:#185FA5; --brand-soft:#EAF3FD;
@@ -22,12 +22,14 @@
   img{max-width:100%}
   .wrap{max-width:var(--maxw);margin:0 auto;padding:0 24px}
 
+  /* logo */
+  .logo-svg{display:block;flex:none;filter:drop-shadow(0 4px 10px rgba(55,138,221,.35))}
+  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;color:var(--text);letter-spacing:.3px}
+
   /* ---------- Header ---------- */
   header{position:sticky;top:0;z-index:50;backdrop-filter:saturate(180%) blur(14px);background:rgba(255,255,255,.72);border-bottom:1px solid transparent;transition:.3s}
   header.scrolled{background:rgba(255,255,255,.88);border-bottom:1px solid var(--border);box-shadow:0 4px 20px rgba(20,40,70,.05)}
   .nav{display:flex;align-items:center;justify-content:space-between;height:64px}
-  .brand{display:flex;align-items:center;gap:10px;font-weight:700;font-size:17px;color:var(--text);letter-spacing:.3px}
-  .brand .mark{width:30px;height:30px;border-radius:9px;background:linear-gradient(135deg,var(--brand),var(--brand-2));display:grid;place-items:center;color:#fff;font-size:15px;box-shadow:0 4px 12px rgba(55,138,221,.4)}
   .nav-links{display:flex;align-items:center;gap:28px}
   .nav-links a{color:var(--text-2);font-size:14.5px;font-weight:500;transition:.2s}
   .nav-links a:hover{color:var(--brand)}
@@ -47,7 +49,7 @@
   .pill .d{width:6px;height:6px;border-radius:50%;background:var(--green)}
   h1{font-size:46px;font-weight:700;letter-spacing:-.6px;line-height:1.22;margin-bottom:16px}
   h1 .grad{background:linear-gradient(120deg,var(--brand),var(--brand-2));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .sub{font-size:18.5px;color:var(--text-2);max-width:660px;margin:0 auto 30px}
+  .sub{font-size:18.5px;color:var(--text-2);max-width:680px;margin:0 auto 30px}
   .flow-line{display:inline-flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:center;font-size:13.5px;color:var(--text-3);background:rgba(255,255,255,.7);border:1px solid var(--border);border-radius:30px;padding:9px 18px;margin-bottom:34px;box-shadow:var(--shadow-sm)}
   .flow-line b{color:var(--brand);font-weight:600}
   .flow-line .ar{color:var(--brand-2);font-weight:700}
@@ -77,9 +79,11 @@
   section{padding:84px 0}
   .eyebrow{display:inline-block;font-size:13px;font-weight:700;letter-spacing:1.2px;color:var(--brand);text-transform:uppercase;margin-bottom:12px}
   h2{font-size:32px;font-weight:700;letter-spacing:-.4px;text-align:center;margin-bottom:10px}
-  .sec-sub{text-align:center;color:var(--text-2);font-size:16px;margin-bottom:52px;max-width:620px;margin-left:auto;margin-right:auto}
+  .sec-sub{text-align:center;color:var(--text-2);font-size:16px;margin-bottom:52px;max-width:640px;margin-left:auto;margin-right:auto}
   #features{background:var(--bg)}
   #workflow{background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
+  #audience{background:var(--bg)}
+  #changelog{background:var(--bg-2);border-top:1px solid var(--border);border-bottom:1px solid var(--border)}
 
   /* features */
   .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px}
@@ -87,7 +91,7 @@
   .card::before{content:"";position:absolute;left:0;top:0;height:3px;width:0;background:linear-gradient(90deg,var(--brand),var(--brand-2));transition:.3s}
   .card:hover{transform:translateY(-6px);box-shadow:var(--shadow-md);border-color:transparent}
   .card:hover::before{width:100%}
-  .ic-tile{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand-soft),#fff);border:1px solid var(--border);color:var(--brand);margin-bottom:18px;box-shadow:inset 0 0 0 4px rgba(55,138,221,.04)}
+  .ic-tile{width:48px;height:48px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,var(--brand-soft),#fff);border:1px solid var(--border);color:var(--brand);margin-bottom:18px;font-size:22px;box-shadow:inset 0 0 0 4px rgba(55,138,221,.04)}
   .card h3{font-size:18px;font-weight:700;margin-bottom:9px}
   .card p{font-size:14.5px;color:var(--text-2);line-height:1.7}
 
@@ -98,6 +102,14 @@
   .step .num{width:60px;height:60px;margin:0 auto 16px;border-radius:50%;display:grid;place-items:center;font-size:22px;font-weight:700;color:#fff;background:linear-gradient(135deg,var(--brand),var(--brand-2));box-shadow:0 10px 22px rgba(55,138,221,.34);position:relative;z-index:2}
   .step h3{font-size:16.5px;font-weight:700;margin-bottom:6px}
   .step p{font-size:13.5px;color:var(--text-2)}
+
+  /* audience */
+  .aud-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:20px}
+  .aud{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:26px 22px;text-align:center;box-shadow:var(--shadow-sm);transition:.25s}
+  .aud:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
+  .aud .emo{font-size:34px;margin-bottom:12px}
+  .aud h3{font-size:16px;font-weight:700;margin-bottom:8px}
+  .aud p{font-size:13.5px;color:var(--text-2)}
 
   /* screenshots */
   .screens{display:grid;grid-template-columns:repeat(2,1fr);gap:28px;max-width:920px;margin:0 auto}
@@ -117,7 +129,7 @@
   .pv-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:40px;align-items:center;max-width:940px;margin:0 auto}
   .pv-list{list-style:none;display:grid;gap:16px}
   .pv-list li{display:flex;gap:14px;background:#fff;border:1px solid var(--border);border-radius:14px;padding:18px 20px;box-shadow:var(--shadow-sm)}
-  .pv-list .ck{flex:none;width:34px;height:34px;border-radius:9px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center}
+  .pv-list .ck{flex:none;width:34px;height:34px;border-radius:9px;background:var(--brand-soft);color:var(--brand);display:grid;place-items:center;font-weight:700}
   .pv-list b{color:var(--brand-strong)}
   .pv-list p{font-size:14.5px;color:var(--text-2);margin:0}
   .pv-aside{background:#fff;border:1px solid var(--border);border-radius:18px;padding:30px;box-shadow:var(--shadow-md);text-align:center}
@@ -125,16 +137,40 @@
   .pv-aside h3{font-size:19px;margin-bottom:10px}
   .pv-aside p{font-size:14.5px;color:var(--text-2)}
 
+  /* changelog */
+  .cl{max-width:720px;margin:0 auto;background:#fff;border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden}
+  .cl-head{display:flex;align-items:center;justify-content:space-between;padding:20px 26px;border-bottom:1px solid var(--border);background:var(--bg-2)}
+  .cl-head .v{font-size:18px;font-weight:700}
+  .cl-head .v small{font-size:13px;color:var(--text-3);font-weight:500;margin-left:8px}
+  .cl-head .tag-latest{background:var(--brand);color:#fff;font-size:12px;font-weight:600;padding:3px 10px;border-radius:20px}
+  .cl-body{padding:20px 26px 8px}
+  .cl-body li{list-style:none;padding:9px 0 9px 22px;position:relative;font-size:14.5px;color:var(--text-2);border-bottom:1px dashed var(--border)}
+  .cl-body li:last-child{border-bottom:none}
+  .cl-body li::before{content:"";position:absolute;left:4px;top:18px;width:7px;height:7px;border-radius:50%;background:var(--brand)}
+  .cl-foot{text-align:center;padding:14px 0 22px}
+
   /* download */
   #download{background:var(--bg-2);border-top:1px solid var(--border)}
   .dl-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:22px;max-width:760px;margin:0 auto}
-  .dl-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:34px 28px;text-align:center;box-shadow:var(--shadow-sm);transition:.25s;position:relative;overflow:hidden}
+  .dl-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:34px 28px;text-align:center;box-shadow:var(--shadow-sm);transition:.25s}
   .dl-card:hover{transform:translateY(-5px);box-shadow:var(--shadow-md)}
   .dl-card .os{font-size:46px;margin-bottom:12px}
   .dl-card h3{font-size:20px;font-weight:700;margin-bottom:6px}
-  .dl-card .arch{font-size:13.5px;color:var(--text-3);margin-bottom:22px}
+  .dl-card .arch{font-size:13.5px;color:var(--text-3);margin-bottom:6px}
+  .dl-card .size{font-size:12.5px;color:var(--brand);font-weight:600;margin-bottom:20px}
   .dl-card .btn{width:100%;justify-content:center}
   .note{text-align:center;color:var(--text-3);font-size:13px;margin-top:28px}
+
+  /* faq */
+  #faq{background:var(--bg)}
+  .faq{max-width:760px;margin:0 auto;display:grid;gap:14px}
+  details{border:1px solid var(--border);border-radius:14px;background:#fff;box-shadow:var(--shadow-sm);overflow:hidden;transition:.2s}
+  details[open]{box-shadow:var(--shadow-md)}
+  summary{list-style:none;cursor:pointer;padding:18px 22px;font-size:15.5px;font-weight:600;display:flex;align-items:center;justify-content:space-between;gap:12px}
+  summary::-webkit-details-marker{display:none}
+  summary::after{content:"+";font-size:22px;font-weight:400;color:var(--brand);transition:.25s}
+  details[open] summary::after{transform:rotate(45deg)}
+  details .ans{padding:0 22px 20px;font-size:14.5px;color:var(--text-2);line-height:1.8}
 
   /* footer */
   footer{padding:46px 0 38px;text-align:center;color:var(--text-3);font-size:13.5px;border-top:1px solid var(--border);background:#fff}
@@ -151,6 +187,7 @@
 
   @media(max-width:880px){
     .grid{grid-template-columns:repeat(2,1fr)}
+    .aud-grid{grid-template-columns:repeat(2,1fr)}
     .steps{grid-template-columns:repeat(2,1fr);gap:26px}
     .steps::before{display:none}
     .pv-grid{grid-template-columns:1fr}
@@ -164,6 +201,7 @@
     section{padding:60px 0}
     h2{font-size:26px}
     .grid{grid-template-columns:1fr}
+    .aud-grid{grid-template-columns:1fr}
     .float{display:none}
     .flow-line{font-size:12.5px;padding:8px 14px}
   }
@@ -171,14 +209,30 @@
 </head>
 <body>
 
+<!-- shared gradient for logo -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true"><defs>
+  <linearGradient id="wtGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0" stop-color="#378ADD"/><stop offset="1" stop-color="#5B9BE8"/>
+  </linearGradient>
+</defs></svg>
+
 <header id="hdr">
   <div class="wrap nav">
-    <div class="brand"><span class="mark">迹</span>工作日迹</div>
+    <div class="brand">
+      <svg class="logo-svg" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="29" height="29" rx="8" fill="url(#wtGrad)"/>
+        <path d="M8 22 C 12 22, 12 12, 16 12 S 20 22, 24 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="8" cy="22" r="2.3" fill="#fff"/><circle cx="24" cy="16" r="2.3" fill="#fff"/>
+      </svg>
+      工作日迹
+    </div>
     <nav class="nav-links">
       <a href="#features">功能</a>
+      <a href="#audience">适用人群</a>
       <a href="#workflow">工作流</a>
       <a href="#screens">界面</a>
       <a href="#privacy">隐私</a>
+      <a href="#changelog">更新日志</a>
       <a href="#download">下载</a>
     </nav>
     <a class="nav-cta" href="https://github.com/qw-null/workTrace/releases/latest">免费下载</a>
@@ -190,17 +244,17 @@
     <div class="pills reveal">
       <span class="pill"><span class="d"></span>本地优先</span>
       <span class="pill"><span class="d"></span>AI 辅助</span>
+      <span class="pill"><span class="d"></span>开源免费</span>
       <span class="pill"><span class="d"></span>自动更新</span>
-      <span class="pill"><span class="d"></span>多端同步</span>
     </div>
-    <h1 class="reveal d1">记录、回顾、汇报，<br><span class="grad">一条工作台全搞定</span></h1>
-    <p class="sub reveal d2">本地优先、AI 辅助的个人工作日志与周报工具 —— 把每天的工作，沉淀成可复用的资产。</p>
+    <h1 class="reveal d1">每天的工作痕迹，<br><span class="grad">自动长成你的周报</span></h1>
+    <p class="sub reveal d2">工作日迹是一款本地优先的桌面工具：随手记一条，AI 帮你结构化；到周五，一份干净周报已经躺在那儿等你润色。</p>
     <div class="flow-line reveal d3"><b>统一输入框</b><span class="ar">→</span><b>AI 结构化</b><span class="ar">→</span><b>热力图回顾</b><span class="ar">→</span><b>一键周报</b><span class="ar">→</span><b>WebDAV 备份</b></div>
     <div class="cta reveal d4">
       <a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">免费下载</a>
-      <a class="btn btn-ghost" href="https://github.com/qw-null/workTrace">GitHub 仓库</a>
+      <a class="btn btn-ghost" href="https://github.com/qw-null/workTrace">在 GitHub 查看</a>
     </div>
-    <div class="meta reveal d5">macOS · Windows · 在线自动更新 · 支持多设备 WebDAV 同步</div>
+    <div class="meta reveal d5">当前版本 <b id="ver-hero">v0.1.7</b> · macOS / Windows · 在线自动更新 · 多设备 WebDAV 同步</div>
   </div>
 
   <div class="mock wrap reveal d5">
@@ -219,12 +273,26 @@
     <h2 class="reveal">为「记工作、写周报」打磨的细节</h2>
     <p class="sec-sub reveal">从一条随手输入，到一份规整周报 —— 每一步都顺手</p>
     <div class="grid">
-      <div class="card reveal"><div class="ic-tile">⌨</div><h3>统一入口记录</h3><p>WorkBuddy 式单一输入框，文字直接键入，图片 / Word / PDF 拖拽或粘贴即可识别解析。</p></div>
-      <div class="card reveal d1"><div class="ic-tile">✦</div><h3>AI 智能拆分</h3><p>记录按「职场助理」、待办按「日程秘书」拆成规整字段，忠实原文不编造。</p></div>
-      <div class="card reveal d2"><div class="ic-tile">◑</div><h3>多模型配置</h3><p>OpenAI 兼容协议 + 本地 Ollama，多模型按用途分工，逐个测试连通性。</p></div>
-      <div class="card reveal"><div class="ic-tile">▤</div><h3>一键周报</h3><p>AI 按时间 + 语义智能分类生成四板块周报，可在线编辑再导出 Word / PDF。</p></div>
-      <div class="card reveal d1"><div class="ic-tile">▦</div><h3>热力图 &amp; 日历</h3><p>GitHub 风格年度热力图 + 月历联动，每日工作量与待办一目了然。</p></div>
-      <div class="card reveal d2"><div class="ic-tile">☁</div><h3>WebDAV 备份</h3><p>坚果云 / InfiniCLOUD / 自建，多账号切换、自动认证，记录永不丢失。</p></div>
+      <div class="card reveal"><div class="ic-tile">⌨</div><h3>统一入口记录</h3><p>一个输入框，文字直接键入，图片 / Word / PDF 拖拽或粘贴即识别，不再为「记到哪」分心。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">✦</div><h3>AI 智能拆分</h3><p>记录按「职场助理」、待办按「日程秘书」拆成时间 / 内容 / 进度 / 相关人字段，忠实原文不编造。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">◑</div><h3>多模型配置</h3><p>OpenAI 兼容协议 + 本地 Ollama，多个模型按用途分工，并可逐个测试连通性。</p></div>
+      <div class="card reveal"><div class="ic-tile">▤</div><h3>一键周报</h3><p>AI 按时间与语义智能分类，生成「成果 / 进行中 / 计划 / 风险」四板块，可在线编辑导出 Word / PDF。</p></div>
+      <div class="card reveal d1"><div class="ic-tile">▦</div><h3>热力图 &amp; 日历</h3><p>GitHub 风格年度热力图 + 月历联动，每日工作量与待办密度一目了然，回顾不再 blank。</p></div>
+      <div class="card reveal d2"><div class="ic-tile">☁</div><h3>WebDAV 备份</h3><p>坚果云 / InfiniCLOUD / 自建服务器，多账号切换、自动认证，记录跨设备一致、永不丢失。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="audience">
+  <div class="wrap">
+    <span class="eyebrow reveal">适用人群</span>
+    <h2 class="reveal">谁在用工作日迹</h2>
+    <p class="sec-sub reveal">只要「每周要交周报、每天有活要记」，它就合适</p>
+    <div class="aud-grid">
+      <div class="aud reveal"><div class="emo">💼</div><h3>职场执行者</h3><p>琐事多、怕漏报，随手记一笔，周报自动有料。</p></div>
+      <div class="aud reveal d1"><div class="emo">🧭</div><h3>团队管理者</h3><p>用统一结构看成员进展，周会前先瞄一眼热力图。</p></div>
+      <div class="aud reveal d2"><div class="emo">🔬</div><h3>研究 / 项目人员</h3><p>长周期任务拆成记录与待办，进度不再靠回忆。</p></div>
+      <div class="aud reveal d3"><div class="emo">✍️</div><h3>自由职业者</h3><p>本地沉淀工作资产，向客户交付时有据可查。</p></div>
     </div>
   </div>
 </section>
@@ -277,38 +345,97 @@
   </div>
 </section>
 
+<section id="changelog">
+  <div class="wrap">
+    <span class="eyebrow reveal">更新日志</span>
+    <h2 class="reveal">持续迭代中</h2>
+    <p class="sec-sub reveal">每次提交都会自动打包并推送更新</p>
+    <div class="cl reveal">
+      <div class="cl-head">
+        <div class="v">v0.1.7 <small id="cl-date">2026-08-19</small></div>
+        <span class="tag-latest">最新版</span>
+      </div>
+      <ul class="cl-body">
+        <li>点击关闭按钮改为隐藏到系统托盘，仅右键托盘菜单可完全退出</li>
+        <li>检查更新增加状态文字反馈，修复架构识别与 pub_date 解析问题</li>
+        <li>待办接入大模型转化，与记录共用结构化提示词</li>
+        <li>周报智能分类（待办活动不误归入下周计划）且支持在线编辑</li>
+      </ul>
+      <div class="cl-foot"><a href="https://github.com/qw-null/workTrace/releases">查看全部版本 →</a></div>
+    </div>
+  </div>
+</section>
+
 <section id="download">
   <div class="wrap">
     <span class="eyebrow reveal">免费下载</span>
     <h2 class="reveal">前往 GitHub Releases 获取安装包</h2>
     <p class="sec-sub reveal">开源免费，下载即用，支持在线自动更新</p>
     <div class="dl-grid">
-      <div class="dl-card reveal"><div class="os">🍎</div><h3>macOS</h3><div class="arch">Apple Silicon (aarch64) · .dmg</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">下载 .dmg</a></div>
-      <div class="dl-card reveal d1"><div class="os">🪟</div><h3>Windows</h3><div class="arch">x64 · .exe</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">下载 .exe</a></div>
+      <div class="dl-card reveal"><div class="os">🍎</div><h3>macOS</h3><div class="arch">Apple Silicon (aarch64) · .dmg</div><div class="size" id="sz-mac">≈ 6.4 MB</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/download/v0.1.7/workTrace_0.1.7_aarch64.dmg">下载 .dmg</a></div>
+      <div class="dl-card reveal d1"><div class="os">🪟</div><h3>Windows</h3><div class="arch">x64 · .exe</div><div class="size" id="sz-win">≈ 4.1 MB</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/download/v0.1.7/workTrace_0.1.7_x64-setup.exe">下载 .exe</a></div>
     </div>
-    <p class="note">软件支持在线自动更新：发现新版本后一键下载安装并重启。</p>
+    <p class="note">软件支持在线自动更新：发现新版本后一键下载安装并重启。<br>当前版本 <b id="ver-dl">v0.1.7</b>（<span id="date-dl">2026-08-19</span> 发布）。</p>
+  </div>
+</section>
+
+<section id="faq">
+  <div class="wrap">
+    <span class="eyebrow reveal">常见问题</span>
+    <h2 class="reveal">你可能想问</h2>
+    <p class="sec-sub reveal">还有疑问？欢迎到 GitHub 提 Issue</p>
+    <div class="faq">
+      <details class="reveal" open><summary>需要一直联网才能用吗？</summary><div class="ans">记录、回顾、周报编辑等核心功能完全本地运行，无需联网。只有在调用大模型做「结构化 / 周报生成」时才需要联网访问你配置的模型（也支持本机 Ollama 离线运行）。</div></details>
+      <details class="reveal d1"><summary>我的工作数据安全吗？</summary><div class="ans">数据默认只存在你本地（JSON / Markdown 文件），API Key 与 WebDAV 密码存入系统钥匙串。没有账号体系、没有云端数据库，你随时可整体导出。</div></details>
+      <details class="reveal d2"><summary>支持哪些 AI 模型？</summary><div class="ans">任意兼容 OpenAI 协议的云端模型（如 GPT 系列、国内大模型网关等），以及本机运行的 Ollama 模型。可在设置中配置多个并按用途切换、测试连通性。</div></details>
+      <details class="reveal d3"><summary>如何更新到新版本？</summary><div class="ans">桌面端内置更新检查，发现新版本会提示一键下载安装并重启；也可随时到 GitHub Releases 手动下载最新安装包。</div></details>
+    </div>
   </div>
 </section>
 
 <footer>
   <div class="wrap">
-    <div class="brand"><span class="mark">迹</span>工作日迹 · WorkTrace</div>
+    <div class="brand">
+      <svg class="logo-svg" viewBox="0 0 32 32" width="26" height="26" aria-hidden="true">
+        <rect x="1.5" y="1.5" width="29" height="29" rx="8" fill="url(#wtGrad)"/>
+        <path d="M8 22 C 12 22, 12 12, 16 12 S 20 22, 24 16" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"/>
+        <circle cx="8" cy="22" r="2.3" fill="#fff"/><circle cx="24" cy="16" r="2.3" fill="#fff"/>
+      </svg>
+      工作日迹 · WorkTrace
+    </div>
     <p><a href="https://github.com/qw-null/workTrace">GitHub 仓库</a><span class="sep"> · </span><a href="https://github.com/qw-null/workTrace/releases">Releases</a><span class="sep"> · </span>建议 / 反馈欢迎提 Issue</p>
     <p style="margin-top:12px;opacity:.7">本地优先的 AI 工作日志与周报工具 · 数据主权属于用户</p>
   </div>
 </footer>
 
 <script>
-  // sticky header shadow
   const hdr=document.getElementById('hdr');
   const onScroll=()=>hdr.classList.toggle('scrolled',window.scrollY>10);
   onScroll();window.addEventListener('scroll',onScroll,{passive:true});
 
-  // scroll reveal
   const io=new IntersectionObserver((entries)=>{
     entries.forEach(e=>{ if(e.isIntersecting){ e.target.classList.add('in'); io.unobserve(e.target);} });
   },{threshold:.12,rootMargin:'0px 0px -8% 0px'});
   document.querySelectorAll('.reveal').forEach(el=>io.observe(el));
+
+  // live version + sizes from GitHub Releases (graceful fallback to static defaults)
+  (async()=>{
+    try{
+      const r=await fetch('https://api.github.com/repos/qw-null/workTrace/releases/latest',{headers:{'Accept':'application/vnd.github+json'}});
+      if(!r.ok) return;
+      const d=await r.json();
+      const tag=d.tag_name||'v0.1.7';
+      const date=(d.published_at||'').slice(0,10)||'2026-08-19';
+      document.querySelectorAll('#ver-hero,#ver-dl').forEach(e=>e.textContent=tag);
+      document.getElementById('date-dl').textContent=date;
+      document.getElementById('cl-date').textContent=date;
+      const mb=b=>'≈ '+(b/1048576).toFixed(1)+' MB';
+      (d.assets||[]).forEach(a=>{
+        if(/aarch64\.dmg$/.test(a.name)) document.getElementById('sz-mac').textContent=mb(a.size);
+        if(/x64-setup\.exe$/.test(a.name)) document.getElementById('sz-win').textContent=mb(a.size);
+      });
+    }catch(e){/* keep static defaults */}
+  })();
 </script>
 
 </body>
