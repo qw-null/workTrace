@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>工作日迹 WorkTrace · 本地优先的 AI 工作日志与周报工具</title>
+<meta name="description" content="统一输入框记录 → AI 结构化 → 热力图/日历回顾 → 一键周报 → WebDAV 备份。本地优先，macOS/Windows 桌面应用。" />
+<style>
+  :root{
+    --brand:#378ADD; --brand-strong:#185FA5; --brand-soft:#E6F1FB;
+    --bg:#ffffff; --bg-2:#f7f9fc; --text:#1c2530; --text-2:#5f6b7a; --text-3:#8a95a5;
+    --border:#e4e9f0; --green:#2fa37a; --radius:14px;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif;color:var(--text);background:var(--bg);line-height:1.7;-webkit-font-smoothing:antialiased}
+  a{color:var(--brand);text-decoration:none}
+  .wrap{max-width:1080px;margin:0 auto;padding:0 24px}
+  /* hero */
+  .hero{background:linear-gradient(180deg,var(--brand-soft) 0%,var(--bg) 100%);padding:72px 0 56px;text-align:center}
+  .badge-row{display:flex;justify-content:center;gap:8px;flex-wrap:wrap;margin-bottom:20px}
+  .badge{background:#fff;border:1px solid var(--border);color:var(--text-2);font-size:13px;padding:4px 14px;border-radius:20px}
+  .logo{font-size:15px;font-weight:600;color:var(--brand-strong);margin-bottom:18px;letter-spacing:.5px}
+  h1{font-size:44px;font-weight:600;letter-spacing:-.5px;margin-bottom:14px}
+  h1 .dot{color:var(--brand)}
+  .sub{font-size:18px;color:var(--text-2);max-width:640px;margin:0 auto 28px}
+  .flow-line{font-size:14px;color:var(--text-3);margin-bottom:32px}
+  .cta{display:flex;gap:14px;justify-content:center;flex-wrap:wrap}
+  .btn{display:inline-block;padding:12px 26px;border-radius:10px;font-size:15px;font-weight:500;transition:.15s}
+  .btn-primary{background:var(--brand);color:#fff}
+  .btn-primary:hover{background:var(--brand-strong)}
+  .btn-ghost{border:1.5px solid var(--brand);color:var(--brand)}
+  .btn-ghost:hover{background:var(--brand-soft)}
+  .meta{font-size:13px;color:var(--text-3);margin-top:18px}
+  /* section */
+  section{padding:60px 0}
+  section h2{font-size:28px;font-weight:600;text-align:center;margin-bottom:8px}
+  .sec-sub{text-align:center;color:var(--text-2);margin-bottom:44px}
+  /* feature grid */
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+  .card{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:26px}
+  .card h3{font-size:17px;font-weight:600;margin-bottom:10px;color:var(--brand-strong)}
+  .card p{font-size:14px;color:var(--text-2)}
+  .card .tag{display:inline-block;background:#fff;border:1px solid var(--border);color:var(--brand);font-size:12px;padding:2px 10px;border-radius:14px;margin-bottom:10px}
+  /* steps */
+  .steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;counter-reset:step}
+  .step{background:var(--bg-2);border:1px solid var(--border);border-radius:var(--radius);padding:24px;position:relative}
+  .step::before{counter-increment:step;content:counter(step);position:absolute;top:18px;right:20px;font-size:34px;font-weight:600;color:var(--brand-soft)}
+  .step h3{font-size:16px;font-weight:600;margin-bottom:8px}
+  .step p{font-size:13px;color:var(--text-2)}
+  /* screens */
+  .screens{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:24px}
+  .screen{border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:#fff}
+  .screen img{width:100%;display:block;border-bottom:1px solid var(--border)}
+  .screen .cap{padding:12px 16px;font-size:13px;color:var(--text-2)}
+  /* privacy */
+  .privacy{background:var(--brand-soft)}
+  .privacy ul{max-width:640px;margin:0 auto;list-style:none}
+  .privacy li{font-size:15px;color:var(--text);padding:10px 0;border-bottom:1px dashed var(--border)}
+  .privacy li:last-child{border-bottom:none}
+  .privacy li b{color:var(--brand-strong)}
+  /* download */
+  .download{background:var(--bg-2)}
+  .dl-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:20px;max-width:780px;margin:0 auto}
+  .dl-card{background:#fff;border:1px solid var(--border);border-radius:var(--radius);padding:26px;text-align:center}
+  .dl-card .os{font-size:22px;margin-bottom:10px}
+  .dl-card h3{font-size:17px;font-weight:600;margin-bottom:6px}
+  .dl-card .arch{font-size:13px;color:var(--text-3);margin-bottom:18px}
+  .note{text-align:center;color:var(--text-3);font-size:13px;margin-top:24px}
+  footer{padding:40px 0;text-align:center;color:var(--text-3);font-size:13px;border-top:1px solid var(--border)}
+  footer a{color:var(--text-2)}
+  @media(max-width:640px){ h1{font-size:34px} .hero{padding:52px 0 40px} }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <div class="wrap">
+    <div class="logo">工作日迹 · WorkTrace</div>
+    <h1>记录、回顾、汇报，<span class="dot">一条工作台全搞定</span></h1>
+    <p class="sub">本地优先、AI 辅助的个人工作日志与周报工具</p>
+    <div class="flow-line">统一输入框 → AI 结构化 → 热力图回顾 → 一键周报 → WebDAV 备份</div>
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">免费下载</a>
+      <a class="btn btn-ghost" href="https://github.com/qw-null/workTrace">GitHub 仓库</a>
+    </div>
+    <div class="meta">macOS · Windows · 在线自动更新 · 支持多设备 WebDAV 同步</div>
+  </div>
+</div>
+
+<section id="features">
+  <div class="wrap">
+    <h2>核心功能</h2>
+    <p class="sec-sub">为「记工作、写周报」打磨的细节</p>
+    <div class="grid">
+      <div class="card"><span class="tag">统一入口</span><h3>记录工作</h3><p>WorkBuddy 式单一输入框，文字直接键入，图片 / Word / PDF 拖拽或粘贴即可识别。</p></div>
+      <div class="card"><span class="tag">AI 智能拆分</span><h3>结构化记录</h3><p>记录按「职场助理」、待办按「日程秘书」拆成规整字段，忠实原文不编造。</p></div>
+      <div class="card"><span class="tag">多模型配置</span><h3>大模型</h3><p>OpenAI 兼容协议 + 本地 Ollama，多模型按用途分工，逐个测试连通性。</p></div>
+      <div class="card"><span class="tag">一键生成</span><h3>周报</h3><p>AI 按时间 + 语义智能分类生成四板块周报，可在线编辑再导出 Word / PDF。</p></div>
+      <div class="card"><span class="tag">可视化</span><h3>热力图 &amp; 日历</h3><p>GitHub 风格年度热力图 + 月历联动，工作记录与待办一目了然。</p></div>
+      <div class="card"><span class="tag">云同步</span><h3>WebDAV 备份</h3><p>坚果云 / InfiniCLOUD / 自建，多账号切换、自动认证，记录不丢失。</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="workflow" style="background:var(--bg-2)">
+  <div class="wrap">
+    <h2>一条线走完工作链路</h2>
+    <p class="sec-sub">从「想到什么」到「周报归档」，无需在多个软件之间切换</p>
+    <div class="steps">
+      <div class="step"><h3>记录</h3><p>一句话、截图、文档，随手扔进输入框</p></div>
+      <div class="step"><h3>AI 结构化</h3><p>拆成时间 / 工作内容 / 进度结果 / 相关人员</p></div>
+      <div class="step"><h3>回顾</h3><p>热力图与日历掌握每日工作量</p></div>
+      <div class="step"><h3>周报</h3><p>一键生成四板块周报，可编辑导出</p></div>
+      <div class="step"><h3>备份</h3><p>WebDAV 云盘同步，多设备一致</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="screens">
+  <div class="wrap">
+    <h2>界面预览</h2>
+    <p class="sec-sub">干净、专注、不花哨</p>
+    <div class="screens">
+      <div class="screen"><img src="screenshots/工作台.png" alt="工作台界面"/><div class="cap">统一输入框记录 → AI 结构化 → 右侧热力图与日历</div></div>
+      <div class="screen"><img src="screenshots/设置.png" alt="设置界面"/><div class="cap">配置大模型、WebDAV 备份与关于信息</div></div>
+    </div>
+  </div>
+</section>
+
+<section class="privacy">
+  <div class="wrap">
+    <h2>本地优先 · 隐私安全</h2>
+    <p class="sec-sub">你的工作记录，永远属于你自己</p>
+    <ul>
+      <li><b>本地文件存储</b> — 记录与周报只存在你电脑上（JSON / Markdown），透明、可备份、可迁移。</li>
+      <li><b>密钥进系统钥匙串</b> — API Key、WebDAV 密码存 macOS Keychain，不落明文。</li>
+      <li><b>按需调用 AI</b> — 只在调用大模型时发送必要片段，绝不用于分析或训练。</li>
+      <li><b>附件不上云</b> — 附件是一次性原料，仅本地临时处理并自动清理，不同步。</li>
+    </ul>
+  </div>
+</section>
+
+<section class="download" id="download">
+  <div class="wrap">
+    <h2>免费下载</h2>
+    <p class="sec-sub">前往 GitHub Releases 下载最新版安装包</p>
+    <div class="dl-grid">
+      <div class="dl-card"><div class="os">🍎</div><h3>macOS</h3><div class="arch">Apple Silicon (aarch64) · .dmg</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">下载 .dmg</a></div>
+      <div class="dl-card"><div class="os">🪟</div><h3>Windows</h3><div class="arch">x64 · .exe</div><a class="btn btn-primary" href="https://github.com/qw-null/workTrace/releases/latest">下载 .exe</a></div>
+    </div>
+    <p class="note">软件支持在线自动更新：发现新版本后一键下载安装并重启。</p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <p>工作日迹 WorkTrace · 本地优先的 AI 工作日志与周报工具</p>
+    <p><a href="https://github.com/qw-null/workTrace">GitHub 仓库</a> · <a href="https://github.com/qw-null/workTrace/releases">Releases</a> · 建议/反馈欢迎提 Issue</p>
+  </div>
+</footer>
+
+</body>
+</html>
